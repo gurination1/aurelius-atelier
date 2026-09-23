@@ -80,11 +80,7 @@ const server = http.createServer((req, res) => {
       'Access-Control-Allow-Origin': '*',
     };
 
-    if (ext === '.woff2' || ext === '.woff' || ext === '.png' || ext === '.jpg' || ext === '.svg') {
-      headers['Cache-Control'] = 'public, max-age=31536000, immutable';
-    } else {
-      headers['Cache-Control'] = 'no-cache';
-    }
+    headers['Cache-Control'] = 'no-cache, no-store, must-revalidate';
 
     res.writeHead(200, headers);
     fs.createReadStream(filePath).pipe(res);

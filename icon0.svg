@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100%" height="100%">
+  <rect width="100" height="100" rx="22" fill="#0A0A0A"/>
+  <!-- Aurelius Crown Emblem -->
+  <!-- Left Wing -->
+  <path d="M50 12 L22 68 H35 L50 34 Z" fill="#FFFFFF"/>
+  <!-- Right Wing -->
+  <path d="M50 12 L78 68 H65 L50 34 Z" fill="#E5E5E5"/>
+  <!-- Gold Facet Jewel -->
+  <path d="M50 28 L57 41 L50 54 L43 41 Z" fill="#C5A064"/>
+  <!-- Horizontal Crossbar Accent -->
+  <path d="M34 50 H66 V54 H34 Z" fill="#FFFFFF" opacity="0.9"/>
+  <!-- Bottom Baseline Pedestal -->
+  <circle cx="50" cy="78" r="3.5" fill="#C5A064"/>
+</svg>
