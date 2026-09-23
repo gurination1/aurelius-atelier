@@ -234,28 +234,93 @@
     });
     
     function ensureHeroMedia() {
-      const container = document.querySelector(".sc-2b039258-5");
-      if (container && !container.querySelector(".hero-bg-media")) {
-        const video = document.createElement("video");
-        video.className = "hero-bg-media";
-        video.autoplay = true;
-        video.loop = true;
-        video.muted = true;
-        video.playsInline = true;
-        video.poster = "/aurelius-atelier/assets/videos/hero_poster.jpg";
-        video.style.cssText = "position:absolute; inset:0; width:100%; height:100%; object-fit:cover; z-index:0; pointer-events:none;";
-        const s1 = document.createElement("source");
-        s1.src = "/aurelius-atelier/assets/videos/hero_desktop.mp4";
-        s1.type = "video/mp4";
-        s1.media = "(min-width: 768px)";
-        const s2 = document.createElement("source");
-        s2.src = "/aurelius-atelier/assets/videos/hero_mobile.mp4";
-        s2.type = "video/mp4";
-        video.appendChild(s1);
-        video.appendChild(s2);
-        container.insertBefore(video, container.firstChild);
-        video.play().catch(() => {});
+      const container = document.querySelector("section.sc-2b039258-0") || document.querySelector(".sc-2b039258-5");
+      if (!container || container.querySelector(".hero-intro-media")) return;
+
+      // 1. Intro Video: plays ONCE on reveal, holds settled frame at end (NO LOOP)
+      const introVideo = document.createElement("video");
+      introVideo.className = "hero-intro-media";
+      introVideo.autoplay = true;
+      introVideo.loop = false;
+      introVideo.muted = true;
+      introVideo.playsInline = true;
+      introVideo.poster = "/aurelius-atelier/assets/videos/hero_poster.jpg";
+      introVideo.style.cssText = "position:absolute; inset:0; width:100%; height:100%; object-fit:cover; z-index:0; pointer-events:none; transition:opacity 0.3s ease-out;";
+      
+      const s1 = document.createElement("source");
+      s1.src = "/aurelius-atelier/assets/videos/hero_desktop.mp4";
+      s1.type = "video/mp4";
+      s1.media = "(min-width: 768px)";
+      const s2 = document.createElement("source");
+      s2.src = "/aurelius-atelier/assets/videos/hero_mobile.mp4";
+      s2.type = "video/mp4";
+      introVideo.appendChild(s1);
+      introVideo.appendChild(s2);
+      
+      introVideo.addEventListener("ended", () => {
+        introVideo.pause();
+        if (introVideo.duration) introVideo.currentTime = introVideo.duration - 0.02;
+      });
+
+      // 2. Scroll Video: bound directly to window.scrollY, scrubs camera flythrough on scroll
+      const scrollVideo = document.createElement("video");
+      scrollVideo.className = "hero-scroll-media";
+      scrollVideo.autoplay = false;
+      scrollVideo.loop = false;
+      scrollVideo.muted = true;
+      scrollVideo.playsInline = true;
+      scrollVideo.preload = "auto";
+      scrollVideo.style.cssText = "position:absolute; inset:0; width:100%; height:100%; object-fit:cover; z-index:0; pointer-events:none; opacity:0; transition:opacity 0.25s ease-out;";
+
+      const sc1 = document.createElement("source");
+      sc1.src = "/aurelius-atelier/assets/videos/scroll_desktop.mp4";
+      sc1.type = "video/mp4";
+      sc1.media = "(min-width: 768px)";
+      const sc2 = document.createElement("source");
+      sc2.src = "/aurelius-atelier/assets/videos/hero_mobile.mp4";
+      sc2.type = "video/mp4";
+      scrollVideo.appendChild(sc1);
+      scrollVideo.appendChild(sc2);
+
+      container.insertBefore(scrollVideo, container.firstChild);
+      container.insertBefore(introVideo, container.firstChild);
+
+      introVideo.play().catch(() => {});
+
+      // Scroll scrubber binding
+      let ticking = false;
+      function syncScrollVideo() {
+        const scrollY = window.scrollY || document.documentElement.scrollTop;
+        const heroTrack = document.querySelector(".sc-2b3d2147-3") || document.querySelector(".cAyyRd");
+        const maxScroll = heroTrack ? heroTrack.offsetHeight : (window.innerHeight * 1.3);
+        const progress = Math.min(1, Math.max(0, scrollY / maxScroll));
+
+        if (progress > 0.015) {
+          if (scrollVideo.style.opacity !== "1") {
+            scrollVideo.style.opacity = "1";
+            introVideo.style.opacity = "0";
+          }
+          if (scrollVideo.duration) {
+            const targetTime = Math.min(scrollVideo.duration - 0.05, progress * scrollVideo.duration);
+            if (Math.abs(scrollVideo.currentTime - targetTime) > 0.03) {
+              scrollVideo.currentTime = targetTime;
+            }
+          }
+        } else {
+          if (scrollVideo.style.opacity !== "0") {
+            scrollVideo.style.opacity = "0";
+            introVideo.style.opacity = "1";
+          }
+        }
+        ticking = false;
       }
+
+      window.addEventListener("scroll", () => {
+        if (!ticking) {
+          requestAnimationFrame(syncScrollVideo);
+          ticking = true;
+        }
+      }, { passive: true });
     }
     ensureHeroMedia();
     const origObs = observer.observe.bind(observer);
