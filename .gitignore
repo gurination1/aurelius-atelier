@@ -1,0 +1,15 @@
+node_modules/
+*.log
+*.png
+audit_*.js
+verify_*.js
+run_master_*.js
+build_source.py
+build_cleanroom*.py
+deploy_cleanroom_assets.py
+apply_aurelius_brand.py
+capture_*.js
+check_sanity.py
+update_*.py
+raw_test.*
+index_next.html
