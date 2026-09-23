@@ -21,12 +21,21 @@
 
   function getLocalAsset(url) {
     if (typeof url !== 'string') return url;
+    const prefix = '/aurelius-atelier';
     if (url.includes('cdn.sanity.io')) {
       const normalized = url.replace(/\\\//g, '/');
       const clean = normalized.split('?')[0].split('/').pop().replace(/\\$/, '');
       if (ASSET_MAP[clean]) {
-        return ASSET_MAP[clean];
+        let mapped = ASSET_MAP[clean];
+        if (!mapped.startsWith('/aurelius-atelier')) mapped = prefix + mapped;
+        return mapped;
       }
+    }
+    if (url.includes('/assets/') && !url.includes('/aurelius-atelier/assets/')) {
+      return url.replace('/assets/', '/aurelius-atelier/assets/');
+    }
+    if (url.includes('/images/') && !url.includes('/aurelius-atelier/images/')) {
+      return url.replace('/images/', '/aurelius-atelier/images/');
     }
     return url;
   }
