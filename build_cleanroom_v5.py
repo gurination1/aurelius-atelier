@@ -367,33 +367,69 @@ svg.logo g.text text {{
   opacity: 1 !important;
 }}
 
-/* Ensure footer background image covers beautifully and is visible above black background */
+/* Hero background picture visibility */
+.ktTCgb, .hUxulM {{
+  background: transparent !important;
+}}
+.eiJGlj {{
+  position: absolute !important;
+  inset: 0 !important;
+  z-index: 1 !important;
+}}
+.eiJGlj picture,
+.eiJGlj picture img {{
+  display: block !important;
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+  opacity: 1 !important;
+}}
+.ktTCgb:after {{
+  z-index: 2 !important;
+}}
+.dOXBxg {{
+  position: relative !important;
+  z-index: 5 !important;
+}}
+
+/* Ensure footer background image covers beautifully and is visible with dark moody gradient */
 footer.kESbul {{
   min-height: 100vh !important;
   position: relative !important;
   overflow: hidden !important;
-  background-color: transparent !important;
+  background-color: #050505 !important;
 }}
-footer.kESbul aside {{
+footer.kESbul aside,
+.gXORHV {{
   position: absolute !important;
   inset: 0 !important;
   width: 100% !important;
   height: 100% !important;
   overflow: hidden !important;
   z-index: 1 !important;
-  background-color: transparent !important;
+  pointer-events: none !important;
 }}
 footer.kESbul aside picture,
-footer.kESbul aside picture img {{
+footer.kESbul aside picture img,
+.gXORHV picture,
+.gXORHV picture img {{
   position: absolute !important;
   inset: 0 !important;
   width: 100% !important;
   height: 100% !important;
   object-fit: cover !important;
   object-position: center bottom !important;
-  opacity: 1 !important;
+  opacity: 0.75 !important;
   display: block !important;
   z-index: 1 !important;
+}}
+footer.kESbul:after {{
+  content: '' !important;
+  position: absolute !important;
+  inset: 0 !important;
+  z-index: 2 !important;
+  background: linear-gradient(180deg, #050505 0%, rgba(5,5,5,0.3) 40%, rgba(5,5,5,0.85) 100%) !important;
+  pointer-events: none !important;
 }}
 footer.kESbul waffl-grid {{
   position: relative !important;
@@ -404,10 +440,7 @@ footer.kESbul .dOSZFU {{
   bottom: 0 !important;
   left: 0 !important;
   right: 0 !important;
-footer.kESbul {{
-  min-height: 100vh;
-  position: relative;
-  overflow: hidden;
+  z-index: 15 !important;
 }}
 </style>
 """
