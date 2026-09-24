@@ -46,12 +46,6 @@ window.ActiveFrame = class ActiveFrame {
 		this.hardwareAcceleration = hardwareAcceleration;
 
 		this.file = file;
-		// Ensure preloader video readiness resolves cleanly and immediately
-		setTimeout(() => {
-			if (this.loading && typeof this.loading.resolve === 'function') {
-				this.loading.resolve();
-			}
-		}, 30);
 		this.init();
 	}
 
@@ -73,7 +67,7 @@ window.ActiveFrame = class ActiveFrame {
 			await this.initDecoder();
 			this.loading.resolve();
 		} catch (error) {
-			console.warn('ActiveFrame fallback:', error); this.loading.resolve();
+			this.loading.reject(error);
 		}
 	}
 
@@ -139,32 +133,27 @@ window.ActiveFrame = class ActiveFrame {
 		}
 
 		if (!this.config) {
-			console.warn('Decoder not supported, resolving loading for video playback fallback'); this.loading.resolve(); return;
+			throw new Error('Decoder not supported');
 		}
 
 		this.createDecoder();
 	}
 
 	createDecoder() {
-		if (!this.config) {
-			this.enabled = false;
-			return;
-		}
-		try {
-			this.decoder = new VideoDecoder({
-				output: this.outputFrame.bind(this),
-				error: e => {
-					this._decoderFailed = true;
-				},
-			});
-			this.decoder.configure(this.config);
-			this._needsKeyFrame = true;
-			this._queuedFrame = null;
-			this._pendingFrame = null;
-		} catch (e) {
-			this.decoder = null;
-			this.enabled = false;
-		}
+		this.decoder = new VideoDecoder({
+			output: this.outputFrame.bind(this),
+			error: e => {
+				console.error('ActiveFrame decoder error:', this.file, e);
+				// Flag only — the next setFrame() call swaps in a fresh decoder.
+				// Touching the dead decoder here would throw inside its own callback.
+				this._decoderFailed = true;
+			},
+		});
+
+		this.decoder.configure(this.config);
+		this._needsKeyFrame = true;
+		this._queuedFrame = null;
+		this._pendingFrame = null;
 	}
 
 	resetDecoder() {
@@ -243,18 +232,13 @@ window.ActiveFrame = class ActiveFrame {
 	}
 
 	decodeChunk(frameMeta) {
-		if (!this.decoder || this.decoder.state !== 'configured') return;
-		try {
-			this.decoder.decode(
-				new EncodedVideoChunk({
-					type: frameMeta.ty,
-					timestamp: frameMeta.t,
-					data: frameMeta.data,
-				})
-			);
-		} catch (e) {
-			this._decoderFailed = true;
-		}
+		this.decoder.decode(
+			new EncodedVideoChunk({
+				type: frameMeta.ty,
+				timestamp: frameMeta.t,
+				data: frameMeta.data,
+			})
+		);
 	}
 
 	setFrame(desideredFrame) {
@@ -329,7 +313,7 @@ window.ActiveFrame = class ActiveFrame {
 			// Seek: backward, first frame, or after a flush — rebuild from the
 			// nearest key frame. Warm-up frames stay below the render floor so only
 			// the target paints.
-			if (!this.decoder || this.decoder.state !== 'configured' || this.decoder.decodeQueueSize > 0) {
+			if (this.decoder.decodeQueueSize > 0 || this.decoder.state !== 'configured') {
 				this.resetDecoder();
 				this._pendingFrame = desideredFrame;
 			}
