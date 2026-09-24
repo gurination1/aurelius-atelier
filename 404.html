@@ -178,42 +178,108 @@
     };
   }
 
-  // 7. Preloader Lifecycle & Single Continuous Hero Video Engine
+  // 7. Preloader Lifecycle & Dual-Video Blend Engine
   document.addEventListener('DOMContentLoaded', () => {
     let entered = false;
-    
+    let pendingEnter = false;
+
     function unlockScrollAndEnter() {
       if (entered) return;
       entered = true;
+
+      document.documentElement.classList.add('site-entered', 'lenis', 'lenis-smooth');
+      document.body.classList.add('site-entered');
+      document.documentElement.classList.remove('lenis-stopped');
       document.documentElement.style.overflowY = 'auto';
       document.documentElement.style.height = 'auto';
       document.body.style.overflowY = 'auto';
       document.body.style.height = 'auto';
-      
-      const aside = document.querySelector('aside.sc-60e682e4-0') || document.querySelector('aside');
-      if (aside) {
-        const enterBtn = aside.querySelector('button');
+
+      document.querySelectorAll('aside.sc-60e682e4-0').forEach(aside => {
+        aside.classList.add('dismissed', 'preloader-dismissed');
+        aside.style.transition = 'opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1)';
+        aside.style.opacity = '0';
+        aside.style.pointerEvents = 'none';
+        const enterBtn = aside.querySelector('button') || Array.from(document.querySelectorAll('button')).find(b => b.textContent.toUpperCase().includes('ENTER'));
         if (enterBtn) {
-          enterBtn.click();
+          try { enterBtn.click(); } catch (e) {}
         }
-      }
+        setTimeout(() => {
+          aside.style.display = 'none';
+          if (aside.parentNode) aside.remove();
+        }, 600);
+      });
+
+      const guard = setInterval(() => {
+        document.documentElement.classList.add('site-entered');
+        document.body.classList.add('site-entered');
+        document.documentElement.classList.remove('lenis-stopped');
+        document.querySelectorAll('aside.sc-60e682e4-0').forEach(a => {
+          a.classList.add('dismissed', 'preloader-dismissed');
+          a.style.display = 'none';
+          if (a.parentNode) a.remove();
+        });
+      }, 150);
+      setTimeout(() => clearInterval(guard), 8000);
     }
 
-    // Allow user to click "ENTER" or click the preloader overlay to enter
+    function requestEnter() {
+      unlockScrollAndEnter();
+    }
+
+    // Click / Tap anywhere on preloader triggers enter
     document.addEventListener('click', (e) => {
       const aside = document.querySelector('aside.sc-60e682e4-0') || document.querySelector('aside');
-      if (aside && aside.contains(e.target) && !entered) {
-        unlockScrollAndEnter();
+      if (aside && !entered) {
+        requestEnter();
       }
-    });
+    }, true);
+
+    document.addEventListener('touchstart', (e) => {
+      const aside = document.querySelector('aside.sc-60e682e4-0') || document.querySelector('aside');
+      if (aside && !entered) {
+        requestEnter();
+      }
+    }, { passive: true });
+
+    // Wheel down triggers enter
+    window.addEventListener('wheel', (e) => {
+      if (e.deltaY > 10 && !entered) {
+        const aside = document.querySelector('aside.sc-60e682e4-0') || document.querySelector('aside');
+        if (aside) requestEnter();
+      }
+    }, { passive: true });
 
     document.addEventListener('keydown', (e) => {
-      if ((e.key === 'Enter' || e.key === ' ') && !entered) {
-        unlockScrollAndEnter();
+      if ((e.key === 'Enter' || e.key === ' ' || e.key === 'ArrowDown') && !entered) {
+        requestEnter();
       }
     });
 
+    const enterPoll = setInterval(() => {
+      if (entered) {
+        clearInterval(enterPoll);
+        return;
+      }
+      const aside = document.querySelector('aside.sc-60e682e4-0') || document.querySelector('aside');
+      if (aside) {
+        const enterBtn = aside.querySelector('button') || Array.from(document.querySelectorAll('button')).find(b => b.textContent.toUpperCase().includes('ENTER'));
+        if (pendingEnter && enterBtn) {
+          unlockScrollAndEnter();
+          clearInterval(enterPoll);
+        }
+      } else {
+        unlockScrollAndEnter();
+        clearInterval(enterPoll);
+      }
+    }, 100);
+
+    setTimeout(() => {
+      if (!entered) unlockScrollAndEnter();
+    }, 3800);
+
     const observer = new MutationObserver(() => {
+      ensureHeroMedia();
       // Place Made by Gurdharam exclusively in slide-out Drawer Menu (in bottom meta dl group)
       const drawerMeta = document.querySelector('.sc-a66db614-9');
       if (drawerMeta && !document.getElementById('drawer-gurdharam-dl')) {
@@ -254,68 +320,164 @@
       });
     });
 
-    // SINGLE CONTINUOUS HERO VIDEO ENGINE (Zero 2-video blending, 100% single video stream)
+    // DUAL-VIDEO BLEND ENGINE (Source-Site Architecture)
     function ensureHeroMedia() {
-      const container = document.querySelector("section.sc-2b039258-0") || document.querySelector(".sc-2b039258-5");
-      if (!container || container.querySelector(".hero-continuous-media")) return;
+      const container = document.querySelector(".sc-2b039258-5") || document.querySelector("section.sc-2b039258-0");
+      if (!container) return;
 
-      const singleVideo = document.createElement("video");
-      singleVideo.className = "hero-continuous-media";
-      singleVideo.autoplay = false;
-      singleVideo.loop = false;
-      singleVideo.muted = true;
-      singleVideo.playsInline = true;
-      singleVideo.preload = "auto";
-      singleVideo.poster = "/aurelius-atelier/assets/videos/hero_settled_frame.jpg";
-      singleVideo.style.cssText = "position:absolute; inset:0; width:100%; height:100%; object-fit:cover; z-index:0; pointer-events:none;";
+      const oldContinuous = container.querySelector(".hero-continuous-media");
+      if (oldContinuous) oldContinuous.remove();
+
+      document.querySelectorAll(".hero-bg-media").forEach(el => el.remove());
+
+      if (container.querySelector(".hero-blend-intro")) return;
+
+      // 1. Lineup Hero Video (Video 1 resting & looping)
+      const introVideo = document.createElement("video");
+      introVideo.className = "hero-blend-intro";
+      introVideo.autoplay = true;
+      introVideo.loop = true;
+      introVideo.muted = true;
+      introVideo.playsInline = true;
+      introVideo.poster = "/aurelius-atelier/assets/videos/hero_poster.jpg";
+      introVideo.style.cssText = "position:absolute; inset:0; width:100%; height:100%; object-fit:cover; z-index:1; pointer-events:none; opacity:1; will-change:opacity,transform; transition:opacity 0.25s ease-out;";
 
       const s1 = document.createElement("source");
-      s1.src = "/aurelius-atelier/assets/videos/scroll_desktop.mp4";
+      s1.src = "/aurelius-atelier/assets/videos/hero_desktop.mp4";
       s1.type = "video/mp4";
       s1.media = "(min-width: 768px)";
       const s2 = document.createElement("source");
-      s2.src = "/aurelius-atelier/assets/videos/scroll_mobile.mp4";
+      s2.src = "/aurelius-atelier/assets/videos/hero_mobile.mp4";
       s2.type = "video/mp4";
-      singleVideo.appendChild(s1);
-      singleVideo.appendChild(s2);
+      introVideo.appendChild(s1);
+      introVideo.appendChild(s2);
 
-      container.insertBefore(singleVideo, container.firstChild);
+      // 2. Flythrough Scrub Video (Video 2 - All-Intra 100% Keyframe for instant 120fps seeks)
+      const scrollVideo = document.createElement("video");
+      scrollVideo.className = "hero-blend-scroll";
+      scrollVideo.autoplay = false;
+      scrollVideo.loop = false;
+      scrollVideo.muted = true;
+      scrollVideo.playsInline = true;
+      scrollVideo.preload = "auto";
+      scrollVideo.poster = "/aurelius-atelier/assets/videos/hero_settled_frame.jpg";
+      scrollVideo.style.cssText = "position:absolute; inset:0; width:100%; height:100%; object-fit:cover; z-index:2; pointer-events:none; opacity:0; will-change:opacity; transition:opacity 0.2s cubic-bezier(0.16, 1, 0.3, 1);";
 
-      // Hero Sticky Viewport & Single Continuous Video Scrubbing
-      let ticking = false;
-      function syncHeroViewportAndVideo() {
+      const sc1 = document.createElement("source");
+      sc1.src = "/aurelius-atelier/assets/videos/scroll_desktop_intra.mp4";
+      sc1.type = "video/mp4";
+      sc1.media = "(min-width: 768px)";
+      const sc2 = document.createElement("source");
+      sc2.src = "/aurelius-atelier/assets/videos/scroll_mobile_intra.mp4";
+      sc2.type = "video/mp4";
+      scrollVideo.appendChild(sc1);
+      scrollVideo.appendChild(sc2);
+
+      container.insertBefore(scrollVideo, container.firstChild);
+      container.insertBefore(introVideo, container.firstChild);
+
+      introVideo.play().catch(() => {});
+
+      // 3. 3D Perspective Parallax Tilt on Hero Intro (matching original site, RAF-throttled)
+      let tiltRAF = null;
+      let lastTiltX = 0;
+      let lastTiltY = 0;
+      window.addEventListener("pointermove", (e) => {
+        const scrollY = window.scrollY || document.documentElement.scrollTop;
+        if (scrollY > 180) return;
+        lastTiltX = (e.clientX / window.innerWidth - 0.5) * 2;
+        lastTiltY = (e.clientY / window.innerHeight - 0.5) * 2;
+        if (!tiltRAF) {
+          tiltRAF = requestAnimationFrame(() => {
+            introVideo.style.transform = `perspective(1200px) rotateY(${lastTiltX * -2.5}deg) rotateX(${lastTiltY * 2.5}deg) scale(1.02)`;
+            tiltRAF = null;
+          });
+        }
+      }, { passive: true });
+
+      // 4. Ultra-Smooth Lerped Video Blend & Scrub Controller (Source-Site Architecture)
+      let targetProgress = 0;
+      let currentProgress = 0;
+      let isSeeking = false;
+
+      function updateTargetProgress() {
         const scrollY = window.scrollY || document.documentElement.scrollTop;
         const heroSpacer = document.querySelector(".sc-2b3d2147-3") || document.querySelector(".fHUmBT");
         const spacerHeight = heroSpacer ? heroSpacer.offsetHeight : (window.innerHeight * 1.4);
-        const maxScroll = spacerHeight;
-
-        // Scrub the single continuous video directly
-        const progress = Math.min(1, Math.max(0, scrollY / maxScroll));
-        if (singleVideo.duration) {
-          const targetTime = Math.min(singleVideo.duration - 0.04, progress * singleVideo.duration);
-          if (Math.abs(singleVideo.currentTime - targetTime) > 0.03) {
-            singleVideo.currentTime = targetTime;
-          }
-        }
-        ticking = false;
+        targetProgress = Math.min(1, Math.max(0, scrollY / spacerHeight));
       }
 
-      window.addEventListener("scroll", () => {
-        if (!ticking) {
-          requestAnimationFrame(syncHeroViewportAndVideo);
-          ticking = true;
+      window.addEventListener("scroll", updateTargetProgress, { passive: true });
+
+      scrollVideo.addEventListener("seeked", () => {
+        isSeeking = false;
+      });
+
+      function renderScrubLoop() {
+        // Silky smooth lerp matching Lenis momentum
+        const diff = targetProgress - currentProgress;
+        if (Math.abs(diff) > 0.0004) {
+          currentProgress += diff * 0.16;
+        } else {
+          currentProgress = targetProgress;
         }
-      }, { passive: true });
-      syncHeroViewportAndVideo();
+
+        // Crossfade Blend: Progress 0.00 -> 0.18
+        const blendThreshold = 0.18;
+        if (currentProgress <= 0.005) {
+          scrollVideo.style.opacity = "0";
+          introVideo.style.opacity = "1";
+          if (introVideo.paused) introVideo.play().catch(() => {});
+        } else if (currentProgress < blendThreshold) {
+          const ratio = (currentProgress - 0.005) / (blendThreshold - 0.005);
+          scrollVideo.style.opacity = ratio.toFixed(4);
+          introVideo.style.opacity = (1 - ratio).toFixed(4);
+          if (introVideo.paused) introVideo.play().catch(() => {});
+        } else {
+          scrollVideo.style.opacity = "1";
+          introVideo.style.opacity = "0";
+          if (!introVideo.paused) introVideo.pause();
+        }
+
+        // Non-blocking seek on all-intra video stream
+        if (scrollVideo.duration && !scrollVideo.seeking && !isSeeking) {
+          const targetTime = Math.min(scrollVideo.duration - 0.04, currentProgress * scrollVideo.duration);
+          if (Math.abs(scrollVideo.currentTime - targetTime) > 0.02) {
+            isSeeking = true;
+            if (typeof scrollVideo.fastSeek === 'function') {
+              scrollVideo.fastSeek(targetTime);
+            } else {
+              scrollVideo.currentTime = targetTime;
+            }
+          }
+        }
+
+        requestAnimationFrame(renderScrubLoop);
+      }
+
+      requestAnimationFrame(renderScrubLoop);
+      updateTargetProgress();
     }
 
     ensureHeroMedia();
     observer.observe(document.body || document.documentElement, { childList: true, subtree: true });
-    setInterval(ensureHeroMedia, 1000);
   });
 })();
 </script>
 <style>
+.hero-bg-media,
+.sc-2b039258-5 canvas {
+  display: none !important;
+}
+aside.sc-60e682e4-0.dismissed,
+aside.preloader-dismissed,
+html.site-entered aside.sc-60e682e4-0,
+body.site-entered aside.sc-60e682e4-0 {
+  display: none !important;
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
 /* Enable native smooth scroll across entire page */
 html, body {
   height: auto !important;
