@@ -214,6 +214,10 @@
           aside.style.visibility = 'hidden';
         }, 800);
       });
+
+      if (typeof window.__playHeroIntro === 'function') {
+        window.__playHeroIntro();
+      }
     }
 
     // ONLY user clicking the Enter button triggers entrance (NO premature auto-enter!)
@@ -292,7 +296,27 @@
 
       if (container.querySelector(".hero-single-video")) return;
 
-      // 1. Single All-Intra Scrubbed Video (Frame 0 = still lineup, scrub = flythrough to cockpit)
+      // 1. Starting Hero Intro Video (Lanczos 2880x1620 upscaled headlights ignition sequence)
+      const introVideo = document.createElement("video");
+      introVideo.className = "hero-intro-video";
+      introVideo.autoplay = false;
+      introVideo.loop = false;
+      introVideo.muted = true;
+      introVideo.playsInline = true;
+      introVideo.preload = "auto";
+      introVideo.style.cssText = "position:absolute; inset:0; width:100%; height:100%; object-fit:cover; z-index:2; pointer-events:none; opacity:1; will-change:opacity; transition:opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1);";
+
+      const in1 = document.createElement("source");
+      in1.src = "/aurelius-atelier/assets/videos/hero_desktop_upscaled.mp4";
+      in1.type = "video/mp4";
+      in1.media = "(min-width: 768px)";
+      const in2 = document.createElement("source");
+      in2.src = "/aurelius-atelier/assets/videos/hero_mobile_upscaled.mp4";
+      in2.type = "video/mp4";
+      introVideo.appendChild(in1);
+      introVideo.appendChild(in2);
+
+      // 2. Single All-Intra Scrubbed Video (Frame 0 = still lineup, scrub = flythrough to cockpit)
       const scrollVideo = document.createElement("video");
       scrollVideo.className = "hero-single-video";
       scrollVideo.autoplay = false;
@@ -314,10 +338,35 @@
       scrollVideo.appendChild(sc2);
 
       container.insertBefore(scrollVideo, container.firstChild);
+      container.insertBefore(introVideo, scrollVideo);
 
       // Resting state: Video paused at 0.0s (no continuous video looping on home screen!)
       scrollVideo.currentTime = 0;
       scrollVideo.pause();
+
+      let introFinished = false;
+      function finishIntro() {
+        if (introFinished) return;
+        introFinished = true;
+        introVideo.style.opacity = "0";
+        setTimeout(() => {
+          try { introVideo.pause(); } catch(e){}
+          introVideo.style.display = "none";
+        }, 600);
+      }
+
+      introVideo.addEventListener("ended", finishIntro);
+
+      window.__playHeroIntro = function() {
+        if (!introFinished) {
+          introVideo.currentTime = 0;
+          introVideo.play().catch(() => finishIntro());
+        }
+      };
+
+      if (document.documentElement.classList.contains('site-entered') && !introFinished) {
+        window.__playHeroIntro();
+      }
 
       // 2. 3D Perspective Parallax Tilt on resting lineup (matching forgeautomotive pointer physics)
       let mouseX = 0;
@@ -332,13 +381,28 @@
         mouseY = (e.clientY / window.innerHeight - 0.5) * 2;
       }, { passive: true });
 
-      // 3. Ultra-smooth scrub controller
+      // 3. Ensure Global Bottom Timeline Progress Bar
+      let timelineTrack = document.getElementById("atelier-timeline-track");
+      let timelineFill = document.getElementById("atelier-timeline-fill");
+      if (!timelineTrack) {
+        timelineTrack = document.createElement("div");
+        timelineTrack.id = "atelier-timeline-track";
+        timelineFill = document.createElement("div");
+        timelineFill.id = "atelier-timeline-fill";
+        timelineTrack.appendChild(timelineFill);
+        document.body.appendChild(timelineTrack);
+      }
+
+      // 4. Ultra-smooth scrub & scroll controller
       let targetProgress = 0;
       let currentProgress = 0;
       let isSeeking = false;
 
       function updateTargetProgress() {
         const scrollY = window.scrollY || document.documentElement.scrollTop;
+        if (scrollY > 15 && !introFinished) {
+          finishIntro();
+        }
         const heroTrack = document.querySelector(".sc-2b3d2147-0");
         const heroSpacer = document.querySelector(".sc-2b3d2147-3") || document.querySelector(".fHUmBT");
         const scrubDistance = heroSpacer ? heroSpacer.offsetHeight : (window.innerHeight * 1.4);
@@ -364,7 +428,14 @@
       function renderScrubLoop() {
         const scrollY = window.scrollY || document.documentElement.scrollTop;
 
-        // Apply smooth 3D tilt when near top
+        // 1. Update Timeline Progress Bar
+        const docH = document.documentElement.scrollHeight - window.innerHeight;
+        const globalProgress = docH > 0 ? Math.min(1, Math.max(0, scrollY / docH)) : 0;
+        if (timelineFill) {
+          timelineFill.style.transform = `scaleX(${globalProgress.toFixed(4)})`;
+        }
+
+        // 2. Apply smooth 3D tilt when near top
         if (scrollY <= 150) {
           curTiltX += (mouseX - curTiltX) * 0.08;
           curTiltY += (mouseY - curTiltY) * 0.08;
@@ -373,7 +444,7 @@
           scrollVideo.style.transform = "perspective(1200px) scale(1.0)";
         }
 
-        // Smooth scrub lerp matching Lenis momentum
+        // 3. Smooth scrub lerp matching Lenis momentum
         const diff = targetProgress - currentProgress;
         if (Math.abs(diff) > 0.0003) {
           currentProgress += diff * 0.18;
@@ -381,7 +452,15 @@
           currentProgress = targetProgress;
         }
 
-        // Seek video
+        // 4. Smooth hero video opacity fadeout as entering section 1
+        if (currentProgress > 0.85) {
+          const fade = Math.max(0, 1 - (currentProgress - 0.85) / 0.15);
+          scrollVideo.style.opacity = fade.toFixed(3);
+        } else {
+          scrollVideo.style.opacity = "1";
+        }
+
+        // 5. Seek video
         if (scrollVideo.duration && !scrollVideo.seeking && !isSeeking) {
           const targetTime = Math.min(scrollVideo.duration - 0.04, currentProgress * scrollVideo.duration);
           if (Math.abs(scrollVideo.currentTime - targetTime) > 0.015) {
@@ -392,6 +471,75 @@
               scrollVideo.currentTime = targetTime;
             }
           }
+        }
+
+        // 6. Dynamic Philosophy Cards & Backgrounds (sc-3a017878)
+        const philCards = document.querySelectorAll(".bSwzfb");
+        const philPics = document.querySelectorAll(".cUIBBc");
+        const philBgPics = document.querySelectorAll(".gjUAhy");
+        if (philCards.length > 0 && philPics.length > 0) {
+          const midY = window.innerHeight * 0.5;
+          let bestPhilIdx = 0;
+          let minPhilDist = Infinity;
+          philCards.forEach((card, idx) => {
+            const r = card.getBoundingClientRect();
+            const d = Math.abs(r.top + r.height * 0.5 - midY);
+            if (d < minPhilDist) {
+              minPhilDist = d;
+              bestPhilIdx = idx;
+            }
+          });
+          philPics.forEach((pic, idx) => {
+            if (idx === bestPhilIdx) {
+              pic.style.setProperty("clip-path", "inset(0%)", "important");
+              pic.style.setProperty("opacity", "1", "important");
+            } else {
+              pic.style.setProperty("clip-path", "inset(50%)", "important");
+              pic.style.setProperty("opacity", "0", "important");
+            }
+          });
+          philBgPics.forEach((bg, idx) => {
+            if (idx === bestPhilIdx) {
+              bg.style.setProperty("opacity", "0.4", "important");
+              bg.style.setProperty("z-index", "0", "important");
+            } else {
+              bg.style.setProperty("opacity", "0", "important");
+              bg.style.setProperty("z-index", "-1", "important");
+            }
+          });
+        }
+
+        // 7. Dynamic Services Split-Screen Photography (sc-ec8dda4b)
+        const serviceRows = document.querySelectorAll(".dKRRQe");
+        const servicePics = document.querySelectorAll(".eMWmav");
+        if (serviceRows.length > 0 && servicePics.length > 0) {
+          const midY = window.innerHeight * 0.5;
+          let bestServIdx = 0;
+          let minServDist = Infinity;
+          serviceRows.forEach((row, idx) => {
+            const r = row.getBoundingClientRect();
+            const d = Math.abs(r.top + r.height * 0.5 - midY);
+            if (d < minServDist) {
+              minServDist = d;
+              bestServIdx = idx;
+            }
+            if (d < window.innerHeight * 0.45) {
+              row.style.setProperty("opacity", "1", "important");
+            } else {
+              row.style.setProperty("opacity", "0.35", "important");
+            }
+          });
+          servicePics.forEach((pic, idx) => {
+            if (idx === bestServIdx) {
+              pic.style.setProperty("clip-path", "inset(0% 0% 0% 0%)", "important");
+              pic.style.setProperty("opacity", "1", "important");
+              pic.style.setProperty("z-index", "2", "important");
+            } else {
+              pic.style.setProperty("clip-path", "inset(100% 0% 0% 0%)", "important");
+              pic.style.setProperty("opacity", "0", "important");
+              pic.style.setProperty("z-index", "1", "important");
+            }
+          });
         }
 
         requestAnimationFrame(renderScrubLoop);
@@ -410,8 +558,14 @@
 .hero-bg-media,
 .hero-blend-intro,
 .hero-blend-scroll,
-.sc-2b039258-5 canvas {
+.sc-2b039258-5 canvas,
+[data-trail="wrapper"],
+[data-trail="item"],
+.sc-d2fec375-0,
+.sc-d2fec375-1,
+.sc-d2fec375-2 {
   display: none !important;
+  pointer-events: none !important;
 }
 aside.sc-60e682e4-0.dismissed,
 aside.preloader-dismissed,
@@ -454,15 +608,10 @@ body.site-entered {
   position: relative !important;
   height: 100dvh !important;
 }
-/* Solid background on subsequent sections so hero never bleeds through */
-.sc-2b3d2147-4,
-.sc-2b3d2147-5,
-section.sc-337305d3-0,
-div.sc-337305d3-0,
-footer.sc-337305d3-0 {
+/* Smooth transition from hero */
+.sc-2b3d2147-4 {
   position: relative;
   z-index: 2;
-  background-color: #0c0c0c;
 }
 
 /* Header Logo styling - enlarged on desktop for premium visual prominence */
@@ -584,6 +733,367 @@ footer.kESbul .dOSZFU {
   left: 0 !important;
   right: 0 !important;
   z-index: 15 !important;
+}
+
+/* Signature Forged Carbon Tactile Texture across all surfaces */
+.eWtujx {
+  display: block !important;
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 0 !important;
+  background: url('/aurelius-atelier/images/forged-carbon.jpg') repeat center center !important;
+  background-size: 313px 314px !important;
+  opacity: 0.18 !important;
+  pointer-events: none !important;
+}
+
+/* Philosophy Section styling & card transitions */
+section.sc-3a017878-0 {
+  position: relative !important;
+  z-index: 2 !important;
+  background: #0c0c0c !important;
+}
+.erByct {
+  display: block !important;
+  position: absolute !important;
+  inset: 0 !important;
+  z-index: 1 !important;
+  pointer-events: none !important;
+}
+.dijNgN {
+  position: sticky !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100% !important;
+  height: 100dvh !important;
+  overflow: clip !important;
+}
+.gjUAhy {
+  display: block !important;
+  position: absolute !important;
+  inset: -1.6rem !important;
+  transition: opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+.gjUAhy img {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+  object-position: center !important;
+  opacity: 0.4 !important;
+  filter: blur(0.8rem) !important;
+}
+.bSEqhL {
+  position: sticky !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100% !important;
+  height: 100dvh !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+.imsiyO {
+  position: relative !important;
+  width: 100% !important;
+  aspect-ratio: 1/1 !important;
+}
+.cUIBBc {
+  display: block !important;
+  position: absolute !important;
+  inset: 0 !important;
+  z-index: 3 !important;
+  overflow: clip !important;
+  transition: clip-path 0.6s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.5s ease !important;
+}
+.cUIBBc img {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+  object-position: center !important;
+  opacity: 1 !important;
+  filter: none !important;
+}
+
+/* Approach Section */
+section.sc-d69e8bb7-0 {
+  position: relative !important;
+  z-index: 2 !important;
+  background: #0c0c0c !important;
+}
+@media (min-width: 1024px) {
+  .cmMPbf {
+    display: flex !important;
+    position: absolute !important;
+    z-index: 2 !important;
+    top: 0 !important;
+    right: calc(8.333vw * 1 + 1.6rem) !important;
+    width: calc(8.333vw * 3 - 3.2rem) !important;
+    height: 100% !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+  .NniYE {
+    position: relative !important;
+    width: 100% !important;
+    aspect-ratio: 2/3 !important;
+    overflow: clip !important;
+  }
+  .fKCneh {
+    display: block !important;
+    position: absolute !important;
+    top: -20% !important;
+    left: 0 !important;
+    width: 100% !important;
+    height: 140% !important;
+    z-index: 2 !important;
+    background: transparent !important;
+  }
+  .fKCneh img {
+    display: block !important;
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover !important;
+    object-position: center !important;
+    opacity: 1 !important;
+    filter: none !important;
+  }
+}
+
+/* Services Section Split-Screen Architecture */
+section.sc-ec8dda4b-2 {
+  position: relative !important;
+  z-index: 2 !important;
+  background: transparent !important;
+}
+@media (min-width: 1024px) {
+  .ztJpI {
+    display: block !important;
+    position: relative !important;
+    inset: unset !important;
+    z-index: 1 !important;
+  }
+  .cvHrtU {
+    position: sticky !important;
+    inset: 0 auto auto 0 !important;
+    height: 100dvh !important;
+    width: 100% !important;
+    overflow: clip !important;
+    z-index: 1 !important;
+  }
+  .eMWmav {
+    display: block !important;
+    position: absolute !important;
+    inset: 0 !important;
+    height: 100% !important;
+    width: 100% !important;
+    background: transparent !important;
+    transition: clip-path 0.5s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.4s ease !important;
+  }
+  .eMWmav img {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover !important;
+    object-position: center !important;
+    opacity: 1 !important;
+    filter: none !important;
+  }
+}
+
+/* Footer CTA vehicle atmosphere */
+footer.kESbul {
+  min-height: 100vh !important;
+  position: relative !important;
+  overflow: hidden !important;
+  background: #000000 !important;
+  z-index: 2 !important;
+}
+footer.kESbul aside,
+.gXORHV {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  overflow: hidden !important;
+  z-index: 1 !important;
+  pointer-events: none !important;
+}
+footer.kESbul aside picture,
+footer.kESbul aside picture img,
+.gXORHV picture,
+.gXORHV picture img {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+  object-position: center bottom !important;
+  opacity: 0.75 !important;
+  filter: none !important;
+  display: block !important;
+  z-index: 1 !important;
+}
+footer.kESbul:after {
+  content: '' !important;
+  position: absolute !important;
+  inset: 0 !important;
+  z-index: 2 !important;
+  background: linear-gradient(180deg, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.2) 40%, rgba(0,0,0,0.85) 100%) !important;
+  pointer-events: none !important;
+}
+footer.kESbul waffl-grid {
+  position: relative !important;
+  z-index: 10 !important;
+  background: transparent !important;
+}
+footer.kESbul div.eUMWJt {
+  background: transparent !important;
+}
+
+/* Image unblurring across the entire site */
+img.sc-b83f0c97-0.ckbPhL,
+img[data-loaded] {
+  filter: none !important;
+  opacity: 1 !important;
+}
+
+/* Atelier Global Timeline Progress Bar (matching forgeautomotive.co.uk) */
+#atelier-timeline-track {
+  position: fixed;
+  bottom: 20px;
+  left: 24px;
+  right: 24px;
+  height: 2px;
+  background: rgba(255, 255, 255, 0.12);
+  z-index: 999;
+  pointer-events: none;
+  border-radius: 1px;
+}
+#atelier-timeline-fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 100%;
+  background: #ffffff;
+  transform-origin: left center;
+  transform: scaleX(0);
+  will-change: transform;
+  border-radius: 1px;
+}
+
+/* Footer CTA and Buttons Complete Styling */
+.sc-a2c8839e-2, .DVqNe {
+  position: relative !important;
+  z-index: 10 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: var(--gap-m) !important;
+  width: 100% !important;
+  text-align: center !important;
+  margin: 0 auto !important;
+}
+.sc-a2c8839e-3 h2, .hcXTEs h2 {
+  font-family: var(--font-heading) !important;
+  font-weight: 200 !important;
+  font-size: clamp(5.8rem, 10vw, 12rem) !important;
+  line-height: 1.05 !important;
+  letter-spacing: -0.2rem !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  margin: 0 !important;
+  text-align: center !important;
+  color: var(--brand-bc5) !important;
+}
+.sc-a2c8839e-4, .gjZIJp {
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+  margin-top: var(--gap-s) !important;
+}
+.sc-a2c8839e-5, .hzTcDn {
+  font-family: var(--font-body) !important;
+  font-size: 1.4rem !important;
+  font-weight: 400 !important;
+  letter-spacing: 0.2rem !important;
+  text-transform: uppercase !important;
+  color: color-mix(in srgb, var(--brand-bc5) 60%, transparent) !important;
+  text-align: center !important;
+  margin: 0 !important;
+}
+.sc-a2c8839e-6, .dOSZFU {
+  position: absolute !important;
+  bottom: calc(var(--gap-xxl) + 10px) !important;
+  left: 0 !important;
+  right: 0 !important;
+  display: flex !important;
+  justify-content: center !important;
+  z-index: 15 !important;
+}
+.sc-a2c8839e-7, .eAfQaW {
+  background: transparent !important;
+  border: none !important;
+  color: color-mix(in srgb, var(--brand-bc5) 60%, transparent) !important;
+  font-family: var(--font-body) !important;
+  font-size: 0.9rem !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.25rem !important;
+  text-transform: uppercase !important;
+  cursor: pointer !important;
+  transition: color 0.3s ease !important;
+}
+.sc-a2c8839e-7:hover, .eAfQaW:hover {
+  color: var(--brand-bc5) !important;
+}
+
+/* Polished Interactive Buttons */
+.doqbUq {
+  position: relative !important;
+  display: inline-grid !important;
+  place-items: center !important;
+  white-space: nowrap !important;
+  width: max-content !important;
+  padding: 1.4rem 3.2rem !important;
+  border: 1px solid rgba(255, 255, 255, 0.25) !important;
+  background: rgba(0, 0, 0, 0.45) !important;
+  backdrop-filter: blur(8px) !important;
+  text-decoration: none !important;
+  transition: border-color 0.4s ease, background 0.4s ease !important;
+}
+.doqbUq:hover {
+  border-color: rgba(255, 255, 255, 0.8) !important;
+  background: rgba(255, 255, 255, 0.12) !important;
+}
+.doqbUq > span {
+  font-family: var(--font-body) !important;
+  font-size: 1.0rem !important;
+  font-weight: 600 !important;
+  line-height: 1.8 !important;
+  letter-spacing: 0.3rem !important;
+  text-transform: uppercase !important;
+  color: #ffffff !important;
+  display: block !important;
+  position: relative !important;
+  z-index: 1 !important;
+}
+.doqbUq > span span {
+  display: inline-block !important;
+  color: #ffffff !important;
+}
+
+/* Ensure Footer CTA and Button are always visible and sharp */
+.sc-a2c8839e-4, .gjZIJp {
+  opacity: 1 !important;
+  visibility: visible !important;
+  transform: none !important;
+}
+.sc-a2c8839e-3 h2 div {
+  opacity: 1 !important;
+  visibility: visible !important;
+  filter: none !important;
+  transform: none !important;
 }
 </style>
 <meta charSet="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/><link rel="preload" as="image" fetchPriority="high" imageSrcSet="/aurelius-atelier/assets/craft/fcdbdf14cba64b77f457e40c415f08366cd05043-2880x3600.jpg 390w, /aurelius-atelier/assets/craft/fcdbdf14cba64b77f457e40c415f08366cd05043-2880x3600.jpg 640w, /aurelius-atelier/assets/craft/fcdbdf14cba64b77f457e40c415f08366cd05043-2880x3600.jpg 750w, /aurelius-atelier/assets/craft/fcdbdf14cba64b77f457e40c415f08366cd05043-2880x3600.jpg 828w, /aurelius-atelier/assets/craft/fcdbdf14cba64b77f457e40c415f08366cd05043-2880x3600.jpg 1080w, /aurelius-atelier/assets/craft/fcdbdf14cba64b77f457e40c415f08366cd05043-2880x3600.jpg 1200w, /aurelius-atelier/assets/craft/fcdbdf14cba64b77f457e40c415f08366cd05043-2880x3600.jpg 1400w, /aurelius-atelier/assets/craft/fcdbdf14cba64b77f457e40c415f08366cd05043-2880x3600.jpg 1920w, /aurelius-atelier/assets/craft/fcdbdf14cba64b77f457e40c415f08366cd05043-2880x3600.jpg 2048w, /aurelius-atelier/assets/craft/fcdbdf14cba64b77f457e40c415f08366cd05043-2880x3600.jpg 3840w" imageSizes="100vw"/><link rel="stylesheet" href="/aurelius-atelier/_next/static/chunks/2fdd_lc5jd195.css" data-precedence="next"/><link rel="stylesheet" href="/aurelius-atelier/_next/static/chunks/19rhlcx2srev9.css" data-precedence="next"/><link rel="stylesheet" href="/aurelius-atelier/_next/static/chunks/2u_v-vubcx27g.css" data-precedence="next"/><link rel="preload" as="script" fetchPriority="low" href="/aurelius-atelier/_next/static/chunks/431bw722fec3m.js" nonce="2jHnFfv2cW9ONq5G/TeSGagJADGfu0mA" /><script src="/aurelius-atelier/_next/static/chunks/1y75lk0sxsiyl.js" async="" nonce="2jHnFfv2cW9ONq5G/TeSGagJADGfu0mA"></script><script src="/aurelius-atelier/_next/static/chunks/0-4srap-ffvu1.js" async="" nonce="2jHnFfv2cW9ONq5G/TeSGagJADGfu0mA"></script><script src="/aurelius-atelier/_next/static/chunks/2bk5_69g8bfis.js" async="" nonce="2jHnFfv2cW9ONq5G/TeSGagJADGfu0mA"></script><script src="/aurelius-atelier/_next/static/chunks/0_sa0502a_zms.js" async="" nonce="2jHnFfv2cW9ONq5G/TeSGagJADGfu0mA"></script><script src="/aurelius-atelier/_next/static/chunks/turbopack-09j_a0p3oj5e6.js" async="" nonce="2jHnFfv2cW9ONq5G/TeSGagJADGfu0mA"></script><script src="/aurelius-atelier/_next/static/chunks/1czk5und2ee0h.js" async="" nonce="2jHnFfv2cW9ONq5G/TeSGagJADGfu0mA"></script><script src="/aurelius-atelier/_next/static/chunks/41he8vsduf6ix.js" async="" nonce="2jHnFfv2cW9ONq5G/TeSGagJADGfu0mA"></script><script src="/aurelius-atelier/_next/static/chunks/34aqkfuuzo3a7.js" async="" nonce="2jHnFfv2cW9ONq5G/TeSGagJADGfu0mA"></script><script src="/aurelius-atelier/_next/static/chunks/1chgqkv70o29y.js" async="" nonce="2jHnFfv2cW9ONq5G/TeSGagJADGfu0mA"></script><script src="/aurelius-atelier/_next/static/chunks/2ojz0fep8owih.js" async="" nonce="2jHnFfv2cW9ONq5G/TeSGagJADGfu0mA"></script><script src="/aurelius-atelier/_next/static/chunks/2pq7yl53l2imk.js" async="" nonce="2jHnFfv2cW9ONq5G/TeSGagJADGfu0mA"></script><script src="/aurelius-atelier/_next/static/chunks/42d_j2uu2fkig.js" async="" nonce="2jHnFfv2cW9ONq5G/TeSGagJADGfu0mA"></script><script src="/aurelius-atelier/_next/static/chunks/3dca2icpnmf5w.js" async="" nonce="2jHnFfv2cW9ONq5G/TeSGagJADGfu0mA"></script><script src="/aurelius-atelier/_next/static/chunks/14jsbfibrjnyd.js" async="" nonce="2jHnFfv2cW9ONq5G/TeSGagJADGfu0mA"></script><script src="/aurelius-atelier/_next/static/chunks/2kmy6hk_t4zji.js" async="" nonce="2jHnFfv2cW9ONq5G/TeSGagJADGfu0mA"></script><script src="/aurelius-atelier/_next/static/chunks/438s292xvyzcm.js" async="" nonce="2jHnFfv2cW9ONq5G/TeSGagJADGfu0mA"></script><script src="/aurelius-atelier/_next/static/chunks/1sjrbbdcor21d.js" async="" nonce="2jHnFfv2cW9ONq5G/TeSGagJADGfu0mA"></script><script src="/aurelius-atelier/_next/static/chunks/12_wxj0s5v3a7.js" async="" nonce="2jHnFfv2cW9ONq5G/TeSGagJADGfu0mA"></script><script src="/aurelius-atelier/_next/static/chunks/1fg1-ayel-vm9.js" async="" nonce="2jHnFfv2cW9ONq5G/TeSGagJADGfu0mA"></script><script src="/aurelius-atelier/_next/static/chunks/0dph9lbzb0lr7.js" async="" nonce="2jHnFfv2cW9ONq5G/TeSGagJADGfu0mA"></script><script src="/aurelius-atelier/_next/static/chunks/0c9f9uugv3qwz.js" async="" nonce="2jHnFfv2cW9ONq5G/TeSGagJADGfu0mA"></script><script src="/aurelius-atelier/_next/static/chunks/1v5m9f6lwcbo6.js" async="" nonce="2jHnFfv2cW9ONq5G/TeSGagJADGfu0mA"></script><link rel="preload" href="/aurelius-atelier/ActiveFrame.js" as="script" nonce="2jHnFfv2cW9ONq5G/TeSGagJADGfu0mA" /><meta name="theme-color" content="#0c0c0c"/><meta name="next-size-adjust" content=""/><title>For Those Who Command Distinction</title><meta name="description" content="A bespoke automotive atelier dedicated to precision styling, advanced performance and master craftsmanship."/><link rel="manifest" href="/aurelius-atelier/manifest.json"/><link rel="canonical" href="https://aureliusatelier.co.uk/"/><meta name="mobile-web-app-capable" content="yes"/><meta name="apple-mobile-web-app-title" content="Aurelius Atelier"/><meta name="apple-mobile-web-app-status-bar-style" content="default"/><meta property="og:title" content="For Those Who Command Distinction"/><meta property="og:description" content="A bespoke automotive atelier dedicated to precision styling, advanced performance and master craftsmanship."/><meta property="og:url" content="https://aureliusatelier.co.uk/"/><meta property="og:site_name" content="Aurelius Atelier"/><meta property="og:locale" content="en_GB"/><meta property="og:image" content="https://aureliusatelier.co.uk/images/og.jpg"/><meta property="og:image:width" content="1200"/><meta property="og:image:height" content="630"/><meta property="og:image:alt" content="Aurelius Atelier — a red Porsche 911 GT3 flanked by a Mercedes G63 and a Land Rover Defender in low light"/><meta property="og:type" content="website"/><meta name="twitter:card" content="summary_large_image"/><meta name="twitter:title" content="For Those Who Command Distinction"/><meta name="twitter:description" content="A bespoke automotive atelier dedicated to precision styling, advanced performance and master craftsmanship."/><meta name="twitter:image" content="https://aureliusatelier.co.uk/images/og.jpg"/><link rel="icon" href="/aurelius-atelier/favicon.ico?favicon.24pqam9041g9u.ico" sizes="48x48" type="image/x-icon"/><link rel="icon" href="/aurelius-atelier/icon0.svg?icon0.342lsyzpwb0wd.svg" sizes="any" type="image/svg+xml"/><link rel="icon" href="/aurelius-atelier/icon1.png?icon1.3brbssnj7vdbn.png" sizes="96x96" type="image/png"/><link rel="apple-touch-icon" href="/aurelius-atelier/apple-icon.png?apple-icon.3mh6c0-o2s98m.png" sizes="180x180" type="image/png"/><script src="/aurelius-atelier/_next/static/chunks/0cz1d0mv5g_q7.js" noModule="" nonce="2jHnFfv2cW9ONq5G/TeSGagJADGfu0mA"></script><style data-styled="" data-styled-version="6.5.3">:root{--brand-bc1:#0C0C0C;--brand-bc2:#161616;--brand-bc3:#410306;--brand-bc4:#C5A064;--brand-bc5:#F2F1ED;--global-white:#ffffff;--global-black:#000000;--feedback-positive:#3adb76;--feedback-negative:#cc4b37;--feedback-warning:#face10;--space-s:4.8rem;--space-m:6rem;--space-l:10rem;--space-xl:12rem;--space-col:calc(8.333vw + 1.8rem);--gap-xxs:0.2rem;--gap-xs:0.4rem;--gap-s:0.8rem;--gap-sm:1.6rem;--gap-m:2.4rem;--gap-l:3.2rem;--gap-xl:4rem;--gap-xxl:6.4rem;--gap-huge:8rem;--gap-uber:9.6rem;--gap-massive:12.8rem;--gap-col:calc(8.333vw + 1.6rem);--br-xs:0.3rem;--br-s:0.6rem;--br-m:1.2rem;--br-l:1.8rem;--br-round:999rem;--easing-bezzy:cubic-bezier(0.8, 0, 0, 1);--easing-bezzy2:cubic-bezier(0.430, 0.195, 0.020, 1);--easing-bezzy3:cubic-bezier(0.5, 0, 0, 1);--easing-ease:ease-in-out;--time-s:0.15s;--time-m:0.3s;--time-l:0.6s;--font-heading:var(--editorial),Georgia,Times,"Times New Roman",serif;--font-body:var(--font-geist-sans),Arial,Helvetica,"Liberation Sans",sans-serif;--font-mono:var(--font-geist-mono),"SFMono-Regular","Menlo","Monaco","Consolas","Liberation Mono","Courier New",monospace;--font-script:var(--inter),"Comic Sans MS","Comic Sans",cursive,Arial,sans-serif;--header-size:3.2rem;--header-size-mobile:8.8rem;--header-size-desktop:9.6rem;}/*!sc*/
