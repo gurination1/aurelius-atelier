@@ -67,7 +67,7 @@ window.ActiveFrame = class ActiveFrame {
 			await this.initDecoder();
 			this.loading.resolve();
 		} catch (error) {
-			this.loading.reject(error);
+			console.warn('ActiveFrame fallback:', error); this.loading.resolve();
 		}
 	}
 
@@ -133,7 +133,7 @@ window.ActiveFrame = class ActiveFrame {
 		}
 
 		if (!this.config) {
-			throw new Error('Decoder not supported');
+			console.warn('Decoder not supported, resolving loading for video playback fallback'); this.loading.resolve(); return;
 		}
 
 		this.createDecoder();
