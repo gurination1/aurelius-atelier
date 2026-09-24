@@ -6,18 +6,16 @@ PAGES = [
     'builds/fa007', 'builds/fa008', 'builds/fa009', 'stock/fa003'
 ]
 
-# Aurelius SVG logo
-AURELIUS_LOGO = '''<a aria-label="Aurelius Atelier home" class="sc-cf9722b1-1 glWlYP" href="/aurelius-atelier/"><svg width="78" height="36" viewBox="0 0 78 36" fill="none" xmlns="http://www.w3.org/2000/svg" class="sc-e576e939-0 gBefHe logo">
+# Vanguard SVG logo
+AURELIUS_LOGO = '''<a aria-label="Vanguard home" class="sc-cf9722b1-1 glWlYP" href="/aurelius-atelier/"><svg width="78" height="36" viewBox="0 0 78 36" fill="none" xmlns="http://www.w3.org/2000/svg" class="sc-e576e939-0 gBefHe logo">
 <g class="icon">
-<path d="M39 3L26 21.5H32L39 10Z" fill="#FFFFFF"/>
-<path d="M39 3L52 21.5H46L39 10Z" fill="rgba(255,255,255,0.85)"/>
-<path d="M39 8.5L42.5 13.5L39 18.5L35.5 13.5Z" fill="#C5A064"/>
-<path d="M31.5 16.5H46.5V17.8H31.5Z" fill="#FFFFFF" opacity="0.9"/>
+<path d="M39 21.5L27 4H33L39 14.5L45 4H51L39 21.5Z" fill="#FFFFFF"/>
+<path d="M39 18L33.5 10H44.5L39 18Z" fill="#C5A064"/>
 </g>
-<g class="text"><text x="39" y="32" text-anchor="middle" fill="#ffffff" font-family="'Geist', -apple-system, sans-serif" font-size="7" font-weight="700" letter-spacing="2.8">AURELIUS</text></g>
+<g class="text"><text x="39" y="32" text-anchor="middle" fill="#ffffff" font-family="'Geist', -apple-system, sans-serif" font-size="6.5" font-weight="700" letter-spacing="3.2">VANGUARD</text></g>
 </svg></a>'''
 
-UNIVERSAL_HEAD_INJECTION = '''
+UNIVERSAL_HEAD_INJECTION = r'''
 <script>
 (function() {
   // 1. Intercept Image prototype setters so React/Next.js image components load locally
@@ -130,25 +128,30 @@ UNIVERSAL_HEAD_INJECTION = '''
 
   // 3. Session enter memory & preloader sync
   window.addEventListener('DOMContentLoaded', () => {
-    const hasEntered = sessionStorage.getItem('aurelius:entered') === '1';
+    const hasEntered = sessionStorage.getItem('vanguard:entered') === '1' || sessionStorage.getItem('aurelius:entered') === '1';
     
     // Listen for click on ENTER button anywhere
     document.addEventListener('click', (e) => {
       const btn = e.target.closest('button');
       if (btn && (btn.classList.contains('sc-60e682e4-7') || (btn.innerText && btn.innerText.includes('ENTER')))) {
-        sessionStorage.setItem('aurelius:entered', '1');
+        sessionStorage.setItem('vanguard:entered', '1');
+        document.documentElement.classList.add('site-entered');
+        document.body.classList.add('site-entered');
       }
     });
 
-    if (hasEntered && window.location.pathname !== '/aurelius-atelier/' && window.location.pathname !== '/') {
-      const checkAndDismiss = setInterval(() => {
-        const btn = document.querySelector('button.sc-60e682e4-7');
-        if (btn) {
-          clearInterval(checkAndDismiss);
-          btn.click();
-        }
-      }, 50);
-      setTimeout(() => clearInterval(checkAndDismiss), 4000);
+    if (hasEntered) {
+      document.documentElement.classList.add('site-entered');
+      document.body.classList.add('site-entered');
+      const loader = document.querySelector('.sc-60e682e4-0');
+      if (loader) {
+        loader.classList.add('dismissed', 'preloader-dismissed');
+        loader.style.display = 'none';
+      }
+      const main = document.querySelector('main#page');
+      if (main) main.removeAttribute('inert');
+      const lenisStopped = document.querySelector('.lenis.lenis-stopped');
+      if (lenisStopped) lenisStopped.classList.remove('lenis-stopped');
     }
 
     // Made by Gurdharam in Drawer Menu
@@ -166,31 +169,29 @@ UNIVERSAL_HEAD_INJECTION = '''
           </a>
         </dd>
         <dd style="color:rgba(255,255,255,0.4); font-size:12px; margin-top:3px; letter-spacing:0.02em;">
-          © 2026 Aurelius Atelier
+          © 2026 Vanguard
         </dd>
       `;
       drawerMeta.appendChild(dl);
     }
 
-    // 4. Aurelius Atelier logo updater
+    // 4. Vanguard logo updater
     function updateLogo() {
       const logoLinks = document.querySelectorAll('header a.glWlYP, a.glWlYP, header a[aria-label*="home"]');
       logoLinks.forEach(logoLink => {
         if (!logoLink.dataset.aureliusPatched) {
           logoLink.dataset.aureliusPatched = 'true';
-          logoLink.setAttribute('aria-label', 'Aurelius Atelier home');
+          logoLink.setAttribute('aria-label', 'Vanguard home');
           logoLink.href = '/aurelius-atelier/';
           const svg = logoLink.querySelector('svg');
           if (svg) {
             svg.innerHTML = `
               <g class="icon">
-                <path d="M39 3L26 21.5H32L39 10Z" fill="#FFFFFF"/>
-                <path d="M39 3L52 21.5H46L39 10Z" fill="rgba(255,255,255,0.85)"/>
-                <path d="M39 8.5L42.5 13.5L39 18.5L35.5 13.5Z" fill="#C5A064"/>
-                <path d="M31.5 16.5H46.5V17.8H31.5Z" fill="#FFFFFF" opacity="0.9"/>
+                <path d="M39 21.5L27 4H33L39 14.5L45 4H51L39 21.5Z" fill="#FFFFFF"/>
+                <path d="M39 18L33.5 10H44.5L39 18Z" fill="#C5A064"/>
               </g>
               <g class="text">
-                <text x="39" y="32" text-anchor="middle" fill="#ffffff" font-family="'Geist', -apple-system, sans-serif" font-size="7" font-weight="700" letter-spacing="2.8">AURELIUS</text>
+                <text x="39" y="32" text-anchor="middle" fill="#ffffff" font-family="'Geist', -apple-system, sans-serif" font-size="6.5" font-weight="700" letter-spacing="3.2">VANGUARD</text>
               </g>
             `;
           }
@@ -224,6 +225,40 @@ UNIVERSAL_HEAD_INJECTION = '''
 </style>
 '''
 
+with open('/root/forge-source/index.html', 'r', encoding='utf-8') as f:
+    idx_content = f.read()
+
+styled_match = re.search(r'<style[^>]*data-styled[^>]*>.*?</style>', idx_content, re.DOTALL)
+STYLED_COMPONENTS_CSS = styled_match.group(0) if styled_match else ''
+
+CRITICAL_HEAD_STYLES = """<style>
+  html, body {
+    background-color: #0c0c0c !important;
+    color: #ffffff;
+    margin: 0;
+    padding: 0;
+  }
+  .sc-60e682e4-0 {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    display: grid;
+    place-items: center;
+    background: #0c0c0c !important;
+  }
+  /* Preloader permanent dismissal once site is entered */
+  html.site-entered .sc-60e682e4-0,
+  body.site-entered .sc-60e682e4-0,
+  .sc-60e682e4-0.dismissed,
+  aside.preloader-dismissed,
+  .preloader-dismissed {
+    display: none !important;
+    opacity: 0 !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+  }
+</style>"""
+
 def clean_page(page_slug):
     raw_path = f"{page_slug}/raw.html"
     if not os.path.exists(raw_path):
@@ -251,13 +286,13 @@ def clean_page(page_slug):
     html = html.replace('https://forgeautomotive.co.uk/', '/aurelius-atelier/')
 
     # 3. Cleanroom text and branding replacement
-    html = html.replace('Forge Automotive', 'Aurelius Atelier')
-    html = html.replace('FORGE AUTOMOTIVE', 'AURELIUS ATELIER')
-    html = html.replace('Forge', 'Aurelius')
-    html = html.replace('FORGE', 'AURELIUS')
+    html = html.replace('Forge Automotive', 'Vanguard')
+    html = html.replace('FORGE AUTOMOTIVE', 'VANGUARD')
+    html = html.replace('Forge', 'Vanguard')
+    html = html.replace('FORGE', 'VANGUARD')
     html = html.replace('forgeautomotive.co.uk', 'gurination1.github.io/aurelius-atelier')
-    html = html.replace('builds@forgeautomotive.co.uk', 'atelier@aurelius.co.uk')
-    html = html.replace('info@forgeautomotive.co.uk', 'concierge@aurelius.co.uk')
+    html = html.replace('builds@forgeautomotive.co.uk', 'concierge@vanguard.co.uk')
+    html = html.replace('info@forgeautomotive.co.uk', 'concierge@vanguard.co.uk')
 
     # 4. Internal links prefixing
     html = re.sub(r'href=\"/builds/([a-zA-Z0-9_\-]+)/?\"', r'href="/aurelius-atelier/builds/\1/"', html)
@@ -270,7 +305,13 @@ def clean_page(page_slug):
     # 5. Header logo substitution
     html = re.sub(r'<a[^>]*class=\"[^\"]*glWlYP[^\"]*\".*?</a>', AURELIUS_LOGO, html, flags=re.DOTALL)
 
-    # 6. Inject universal scripts and preloader fix
+    # 6. Inject styled-components CSS & critical styles
+    if '<style data-styled="active" data-styled-version="6.5.3"></style>' in html and STYLED_COMPONENTS_CSS:
+        html = html.replace('<style data-styled="active" data-styled-version="6.5.3"></style>', STYLED_COMPONENTS_CSS)
+    if '<head>' in html:
+        html = html.replace('<head>', '<head>\n' + CRITICAL_HEAD_STYLES)
+
+    # 7. Inject universal scripts and preloader fix
     html = html.replace('</head>', UNIVERSAL_HEAD_INJECTION + '</head>')
 
     out_path = f"{page_slug}/index.html"
