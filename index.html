@@ -178,21 +178,23 @@
     };
   }
 
-  // 7. Preloader Lifecycle & Dual-Video Blend Engine
+  // 7. Preloader Lifecycle & Single Scrubbed Video Engine
   document.addEventListener('DOMContentLoaded', () => {
     let entered = false;
-    let pendingEnter = false;
 
-    function unlockScrollAndEnter() {
+    function unlockScrollAndEnter(fromUserClick) {
       if (entered) return;
       entered = true;
 
       document.documentElement.classList.add('site-entered', 'lenis', 'lenis-smooth');
       document.body.classList.add('site-entered');
       document.documentElement.classList.remove('lenis-stopped');
+      document.documentElement.style.overflowX = 'hidden';
       document.documentElement.style.overflowY = 'auto';
       document.documentElement.style.height = 'auto';
-      document.body.style.overflowY = 'auto';
+      document.body.style.overflow = 'visible';
+      document.body.style.overflowX = 'visible';
+      document.body.style.overflowY = 'visible';
       document.body.style.height = 'auto';
 
       document.querySelectorAll('aside.sc-60e682e4-0').forEach(aside => {
@@ -200,83 +202,42 @@
         aside.style.transition = 'opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1)';
         aside.style.opacity = '0';
         aside.style.pointerEvents = 'none';
-        const enterBtn = aside.querySelector('button') || Array.from(document.querySelectorAll('button')).find(b => b.textContent.toUpperCase().includes('ENTER'));
-        if (enterBtn) {
-          try { enterBtn.click(); } catch (e) {}
+        if (!fromUserClick) {
+          const enterBtn = aside.querySelector('button[aria-label="Enter Website"]') ||
+                           Array.from(aside.querySelectorAll('button')).find(b => b.textContent.toUpperCase().includes('ENTER'));
+          if (enterBtn) {
+            try { enterBtn.click(); } catch (e) {}
+          }
         }
         setTimeout(() => {
           aside.style.display = 'none';
-          if (aside.parentNode) aside.remove();
-        }, 600);
+          aside.style.visibility = 'hidden';
+        }, 800);
       });
-
-      const guard = setInterval(() => {
-        document.documentElement.classList.add('site-entered');
-        document.body.classList.add('site-entered');
-        document.documentElement.classList.remove('lenis-stopped');
-        document.querySelectorAll('aside.sc-60e682e4-0').forEach(a => {
-          a.classList.add('dismissed', 'preloader-dismissed');
-          a.style.display = 'none';
-          if (a.parentNode) a.remove();
-        });
-      }, 150);
-      setTimeout(() => clearInterval(guard), 8000);
     }
 
-    function requestEnter() {
-      unlockScrollAndEnter();
-    }
-
-    // Click / Tap anywhere on preloader triggers enter
+    // ONLY user clicking the Enter button triggers entrance (NO premature auto-enter!)
     document.addEventListener('click', (e) => {
-      const aside = document.querySelector('aside.sc-60e682e4-0') || document.querySelector('aside');
-      if (aside && !entered) {
-        requestEnter();
-      }
-    }, true);
-
-    document.addEventListener('touchstart', (e) => {
-      const aside = document.querySelector('aside.sc-60e682e4-0') || document.querySelector('aside');
-      if (aside && !entered) {
-        requestEnter();
-      }
-    }, { passive: true });
-
-    // Wheel down triggers enter
-    window.addEventListener('wheel', (e) => {
-      if (e.deltaY > 10 && !entered) {
-        const aside = document.querySelector('aside.sc-60e682e4-0') || document.querySelector('aside');
-        if (aside) requestEnter();
-      }
-    }, { passive: true });
-
-    document.addEventListener('keydown', (e) => {
-      if ((e.key === 'Enter' || e.key === ' ' || e.key === 'ArrowDown') && !entered) {
-        requestEnter();
+      const enterBtn = e.target.closest('button[aria-label="Enter Website"]') ||
+                       (e.target.closest('aside.sc-60e682e4-0 button') && e.target.closest('button').textContent.toUpperCase().includes('ENTER'));
+      if (enterBtn && !entered) {
+        unlockScrollAndEnter(true);
       }
     });
 
-    const enterPoll = setInterval(() => {
-      if (entered) {
-        clearInterval(enterPoll);
-        return;
-      }
-      const aside = document.querySelector('aside.sc-60e682e4-0') || document.querySelector('aside');
-      if (aside) {
-        const enterBtn = aside.querySelector('button') || Array.from(document.querySelectorAll('button')).find(b => b.textContent.toUpperCase().includes('ENTER'));
-        if (pendingEnter && enterBtn) {
-          unlockScrollAndEnter();
-          clearInterval(enterPoll);
+    document.addEventListener('keydown', (e) => {
+      if ((e.key === 'Enter' || e.key === ' ') && !entered) {
+        const aside = document.querySelector('aside.sc-60e682e4-0');
+        if (aside) {
+          const enterBtn = aside.querySelector('button[aria-label="Enter Website"]') ||
+                           Array.from(aside.querySelectorAll('button')).find(b => b.textContent.toUpperCase().includes('ENTER'));
+          if (enterBtn) {
+            enterBtn.click();
+            unlockScrollAndEnter(true);
+          }
         }
-      } else {
-        unlockScrollAndEnter();
-        clearInterval(enterPoll);
       }
-    }, 100);
-
-    setTimeout(() => {
-      if (!entered) unlockScrollAndEnter();
-    }, 3800);
+    });
 
     const observer = new MutationObserver(() => {
       ensureHeroMedia();
@@ -320,48 +281,27 @@
       });
     });
 
-    // DUAL-VIDEO BLEND ENGINE (Source-Site Architecture)
+    // UNIFIED ULTRA-SMOOTH HERO VIDEO ENGINE (Matching forgeautomotive.co.uk)
     function ensureHeroMedia() {
       const container = document.querySelector(".sc-2b039258-5") || document.querySelector("section.sc-2b039258-0");
       if (!container) return;
 
       const oldContinuous = container.querySelector(".hero-continuous-media");
       if (oldContinuous) oldContinuous.remove();
+      document.querySelectorAll(".hero-bg-media, .hero-blend-intro, .hero-blend-scroll").forEach(el => el.remove());
 
-      document.querySelectorAll(".hero-bg-media").forEach(el => el.remove());
+      if (container.querySelector(".hero-single-video")) return;
 
-      if (container.querySelector(".hero-blend-intro")) return;
-
-      // 1. Lineup Hero Video (Video 1 resting & looping)
-      const introVideo = document.createElement("video");
-      introVideo.className = "hero-blend-intro";
-      introVideo.autoplay = true;
-      introVideo.loop = true;
-      introVideo.muted = true;
-      introVideo.playsInline = true;
-      introVideo.poster = "/aurelius-atelier/assets/videos/hero_poster.jpg";
-      introVideo.style.cssText = "position:absolute; inset:0; width:100%; height:100%; object-fit:cover; z-index:1; pointer-events:none; opacity:1; will-change:opacity,transform; transition:opacity 0.25s ease-out;";
-
-      const s1 = document.createElement("source");
-      s1.src = "/aurelius-atelier/assets/videos/hero_desktop.mp4";
-      s1.type = "video/mp4";
-      s1.media = "(min-width: 768px)";
-      const s2 = document.createElement("source");
-      s2.src = "/aurelius-atelier/assets/videos/hero_mobile.mp4";
-      s2.type = "video/mp4";
-      introVideo.appendChild(s1);
-      introVideo.appendChild(s2);
-
-      // 2. Flythrough Scrub Video (Video 2 - All-Intra 100% Keyframe for instant 120fps seeks)
+      // 1. Single All-Intra Scrubbed Video (Frame 0 = still lineup, scrub = flythrough to cockpit)
       const scrollVideo = document.createElement("video");
-      scrollVideo.className = "hero-blend-scroll";
+      scrollVideo.className = "hero-single-video";
       scrollVideo.autoplay = false;
       scrollVideo.loop = false;
       scrollVideo.muted = true;
       scrollVideo.playsInline = true;
       scrollVideo.preload = "auto";
       scrollVideo.poster = "/aurelius-atelier/assets/videos/hero_settled_frame.jpg";
-      scrollVideo.style.cssText = "position:absolute; inset:0; width:100%; height:100%; object-fit:cover; z-index:2; pointer-events:none; opacity:0; will-change:opacity; transition:opacity 0.2s cubic-bezier(0.16, 1, 0.3, 1);";
+      scrollVideo.style.cssText = "position:absolute; inset:0; width:100%; height:100%; object-fit:cover; z-index:1; pointer-events:none; opacity:1; will-change:transform,opacity; transform:perspective(1200px);";
 
       const sc1 = document.createElement("source");
       sc1.src = "/aurelius-atelier/assets/videos/scroll_desktop_intra.mp4";
@@ -374,37 +314,45 @@
       scrollVideo.appendChild(sc2);
 
       container.insertBefore(scrollVideo, container.firstChild);
-      container.insertBefore(introVideo, container.firstChild);
 
-      introVideo.play().catch(() => {});
+      // Resting state: Video paused at 0.0s (no continuous video looping on home screen!)
+      scrollVideo.currentTime = 0;
+      scrollVideo.pause();
 
-      // 3. 3D Perspective Parallax Tilt on Hero Intro (matching original site, RAF-throttled)
-      let tiltRAF = null;
-      let lastTiltX = 0;
-      let lastTiltY = 0;
+      // 2. 3D Perspective Parallax Tilt on resting lineup (matching forgeautomotive pointer physics)
+      let mouseX = 0;
+      let mouseY = 0;
+      let curTiltX = 0;
+      let curTiltY = 0;
+
       window.addEventListener("pointermove", (e) => {
         const scrollY = window.scrollY || document.documentElement.scrollTop;
-        if (scrollY > 180) return;
-        lastTiltX = (e.clientX / window.innerWidth - 0.5) * 2;
-        lastTiltY = (e.clientY / window.innerHeight - 0.5) * 2;
-        if (!tiltRAF) {
-          tiltRAF = requestAnimationFrame(() => {
-            introVideo.style.transform = `perspective(1200px) rotateY(${lastTiltX * -2.5}deg) rotateX(${lastTiltY * 2.5}deg) scale(1.02)`;
-            tiltRAF = null;
-          });
-        }
+        if (scrollY > 150) return;
+        mouseX = (e.clientX / window.innerWidth - 0.5) * 2;
+        mouseY = (e.clientY / window.innerHeight - 0.5) * 2;
       }, { passive: true });
 
-      // 4. Ultra-Smooth Lerped Video Blend & Scrub Controller (Source-Site Architecture)
+      // 3. Ultra-smooth scrub controller
       let targetProgress = 0;
       let currentProgress = 0;
       let isSeeking = false;
 
       function updateTargetProgress() {
         const scrollY = window.scrollY || document.documentElement.scrollTop;
+        const heroTrack = document.querySelector(".sc-2b3d2147-0");
         const heroSpacer = document.querySelector(".sc-2b3d2147-3") || document.querySelector(".fHUmBT");
-        const spacerHeight = heroSpacer ? heroSpacer.offsetHeight : (window.innerHeight * 1.4);
-        targetProgress = Math.min(1, Math.max(0, scrollY / spacerHeight));
+        const scrubDistance = heroSpacer ? heroSpacer.offsetHeight : (window.innerHeight * 1.4);
+        
+        targetProgress = Math.min(1, Math.max(0, scrollY / scrubDistance));
+
+        // When scrolled past hero section: completely hide and pause video so it never shows across subsequent sections
+        const heroTrackBottom = heroTrack ? (heroTrack.offsetHeight - window.innerHeight * 0.5) : (scrubDistance + window.innerHeight);
+        if (scrollY > heroTrackBottom) {
+          scrollVideo.style.visibility = "hidden";
+          if (!scrollVideo.paused) scrollVideo.pause();
+        } else {
+          scrollVideo.style.visibility = "visible";
+        }
       }
 
       window.addEventListener("scroll", updateTargetProgress, { passive: true });
@@ -414,35 +362,29 @@
       });
 
       function renderScrubLoop() {
-        // Silky smooth lerp matching Lenis momentum
+        const scrollY = window.scrollY || document.documentElement.scrollTop;
+
+        // Apply smooth 3D tilt when near top
+        if (scrollY <= 150) {
+          curTiltX += (mouseX - curTiltX) * 0.08;
+          curTiltY += (mouseY - curTiltY) * 0.08;
+          scrollVideo.style.transform = `perspective(1200px) rotateY(${curTiltX * -2.5}deg) rotateX(${curTiltY * 2.5}deg) scale(1.02)`;
+        } else {
+          scrollVideo.style.transform = "perspective(1200px) scale(1.0)";
+        }
+
+        // Smooth scrub lerp matching Lenis momentum
         const diff = targetProgress - currentProgress;
-        if (Math.abs(diff) > 0.0004) {
-          currentProgress += diff * 0.16;
+        if (Math.abs(diff) > 0.0003) {
+          currentProgress += diff * 0.18;
         } else {
           currentProgress = targetProgress;
         }
 
-        // Crossfade Blend: Progress 0.00 -> 0.18
-        const blendThreshold = 0.18;
-        if (currentProgress <= 0.005) {
-          scrollVideo.style.opacity = "0";
-          introVideo.style.opacity = "1";
-          if (introVideo.paused) introVideo.play().catch(() => {});
-        } else if (currentProgress < blendThreshold) {
-          const ratio = (currentProgress - 0.005) / (blendThreshold - 0.005);
-          scrollVideo.style.opacity = ratio.toFixed(4);
-          introVideo.style.opacity = (1 - ratio).toFixed(4);
-          if (introVideo.paused) introVideo.play().catch(() => {});
-        } else {
-          scrollVideo.style.opacity = "1";
-          introVideo.style.opacity = "0";
-          if (!introVideo.paused) introVideo.pause();
-        }
-
-        // Non-blocking seek on all-intra video stream
+        // Seek video
         if (scrollVideo.duration && !scrollVideo.seeking && !isSeeking) {
           const targetTime = Math.min(scrollVideo.duration - 0.04, currentProgress * scrollVideo.duration);
-          if (Math.abs(scrollVideo.currentTime - targetTime) > 0.02) {
+          if (Math.abs(scrollVideo.currentTime - targetTime) > 0.015) {
             isSeeking = true;
             if (typeof scrollVideo.fastSeek === 'function') {
               scrollVideo.fastSeek(targetTime);
@@ -466,6 +408,8 @@
 </script>
 <style>
 .hero-bg-media,
+.hero-blend-intro,
+.hero-blend-scroll,
 .sc-2b039258-5 canvas {
   display: none !important;
 }
@@ -478,12 +422,23 @@ body.site-entered aside.sc-60e682e4-0 {
   visibility: hidden !important;
   pointer-events: none !important;
 }
-/* Enable native smooth scroll across entire page */
-html, body {
+/* Lock scroll while preloader is active, unlock on site-entered */
+html:not(.site-entered),
+body:not(.site-entered) {
+  overflow: hidden !important;
+  height: 100% !important;
+}
+html.site-entered {
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  height: auto !important;
+}
+body.site-entered {
+  overflow: visible !important;
+  overflow-x: visible !important;
+  overflow-y: visible !important;
   height: auto !important;
   min-height: 100vh !important;
-  overflow-x: clip !important;
-  overflow-y: visible !important;
 }
 #page {
   height: auto !important;
@@ -498,6 +453,16 @@ html, body {
 .lmcVrK {
   position: relative !important;
   height: 100dvh !important;
+}
+/* Solid background on subsequent sections so hero never bleeds through */
+.sc-2b3d2147-4,
+.sc-2b3d2147-5,
+section.sc-337305d3-0,
+div.sc-337305d3-0,
+footer.sc-337305d3-0 {
+  position: relative;
+  z-index: 2;
+  background-color: #0c0c0c;
 }
 
 /* Header Logo styling - enlarged on desktop for premium visual prominence */
