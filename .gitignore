@@ -14,3 +14,7 @@ check_sanity.py
 update_*.py
 raw_test.*
 index_next.html
+inspect_*.py
+compare_*.py
+audit_*.py
+verify_*.py
