@@ -151,10 +151,18 @@ HERO_BLEND_ENGINE = f"""
 
     if (!heroSection.contains(heroWrapper)) {{
       heroSection.insertBefore(heroWrapper, heroSection.firstChild);
-      if (sessionStorage.getItem("forge_entered") === "true") {{
-        if (introVideo.paused && introVideo.currentTime < 0.1) {{
-          introVideo.play().catch(() => {{}});
-        }}
+    }}
+
+    if (sessionStorage.getItem("forge_entered") !== "true") {{
+      if (introVideo && !introVideo.paused) {{
+        introVideo.pause();
+      }}
+      if (introVideo && introVideo.currentTime > 0.05) {{
+        try {{ introVideo.currentTime = 0; }} catch(e) {{}}
+      }}
+    }} else {{
+      if (introVideo && introVideo.paused && introVideo.currentTime < 0.1) {{
+        introVideo.play().catch(() => {{}});
       }}
     }}
   }}
@@ -236,6 +244,7 @@ HERO_BLEND_ENGINE = f"""
     if (introVideo && scrollVideo) {{
       // Crossfade Blend: Progress 0.00 -> 0.18
       const blendThreshold = 0.18;
+      const isScrollReady = scrollVideo.readyState >= 2;
       if (currentProgress <= 0.005) {{
         scrollVideo.style.opacity = "0";
         introVideo.style.opacity = "1";
@@ -244,14 +253,24 @@ HERO_BLEND_ENGINE = f"""
         }}
       }} else if (currentProgress < blendThreshold) {{
         const ratio = (currentProgress - 0.005) / (blendThreshold - 0.005);
-        scrollVideo.style.opacity = ratio.toFixed(4);
-        introVideo.style.opacity = (1 - ratio).toFixed(4);
+        if (isScrollReady) {{
+          scrollVideo.style.opacity = ratio.toFixed(4);
+          introVideo.style.opacity = (1 - ratio).toFixed(4);
+        }} else {{
+          scrollVideo.style.opacity = "0";
+          introVideo.style.opacity = "1";
+        }}
         if (introVideo.paused && introVideo.currentTime < ((introVideo.duration || 4.1) - 0.1)) {{
           introVideo.play().catch(() => {{}});
         }}
       }} else {{
-        scrollVideo.style.opacity = "1";
-        introVideo.style.opacity = "0";
+        if (isScrollReady) {{
+          scrollVideo.style.opacity = "1";
+          introVideo.style.opacity = "0";
+        }} else {{
+          scrollVideo.style.opacity = "0";
+          introVideo.style.opacity = "1";
+        }}
         if (!introVideo.paused) introVideo.pause();
       }}
 
@@ -313,13 +332,16 @@ HERO_BLEND_ENGINE = f"""
       document.documentElement.classList.add("site-entered");
       document.body.classList.add("site-entered");
       document.documentElement.classList.remove("lenis-stopped");
-      document.documentElement.style.setProperty("overflow", "auto", "important");
+      document.documentElement.style.setProperty("overflow-y", "auto", "important");
+      document.documentElement.style.setProperty("overflow-x", "hidden", "important");
       document.documentElement.style.setProperty("height", "auto", "important");
-      document.body.style.setProperty("overflow", "auto", "important");
+      document.body.style.setProperty("overflow", "visible", "important");
       document.body.style.setProperty("height", "auto", "important");
       const pageEl = document.getElementById("page");
       if (pageEl) {{
         pageEl.style.setProperty("overflow", "visible", "important");
+        pageEl.style.setProperty("clip-path", "none", "important");
+        pageEl.style.setProperty("view-transition-name", "none", "important");
         pageEl.style.setProperty("height", "auto", "important");
       }}
 
@@ -352,6 +374,15 @@ HERO_BLEND_ENGINE = f"""
       if (introVid) {{
         try {{ introVid.currentTime = 0; }} catch(e) {{}}
         introVid.play().catch(() => {{}});
+      }}
+
+      // Prime scroll video decoder pipeline
+      const scrVid = document.querySelector(".hero-blend-scroll");
+      if (scrVid) {{
+        scrVid.play().then(() => {{
+          scrVid.pause();
+          try {{ scrVid.currentTime = 0; }} catch(e) {{}}
+        }}).catch(() => {{}});
       }}
 
       // Hide preloader elements after fadeout completes (CSS only, do not remove DOM nodes)
@@ -394,13 +425,16 @@ HERO_BLEND_ENGINE = f"""
         document.documentElement.classList.add("site-entered");
         document.body.classList.add("site-entered");
         document.documentElement.classList.remove("lenis-stopped");
-        document.documentElement.style.setProperty("overflow", "auto", "important");
+        document.documentElement.style.setProperty("overflow-y", "auto", "important");
+        document.documentElement.style.setProperty("overflow-x", "hidden", "important");
         document.documentElement.style.setProperty("height", "auto", "important");
-        document.body.style.setProperty("overflow", "auto", "important");
+        document.body.style.setProperty("overflow", "visible", "important");
         document.body.style.setProperty("height", "auto", "important");
         const pageEl = document.getElementById("page");
         if (pageEl) {{
           pageEl.style.setProperty("overflow", "visible", "important");
+          pageEl.style.setProperty("clip-path", "none", "important");
+          pageEl.style.setProperty("view-transition-name", "none", "important");
           pageEl.style.setProperty("height", "auto", "important");
         }}
 
@@ -424,6 +458,14 @@ HERO_BLEND_ENGINE = f"""
         const video = document.querySelector(".hero-blend-intro");
         if (video && video.paused && video.currentTime < ((video.duration || 4.1) - 0.1)) {{
           video.play().catch(() => {{}});
+        }}
+
+        const scrVideo = document.querySelector(".hero-blend-scroll");
+        if (scrVideo) {{
+          scrVideo.play().then(() => {{
+            scrVideo.pause();
+            try {{ scrVideo.currentTime = 0; }} catch(e) {{}}
+          }}).catch(() => {{}});
         }}
       }} else {{
         // Guarantee: ensure enter button is visible and active after 2.2s
@@ -463,16 +505,40 @@ HERO_BLEND_ENGINE = f"""
 .sc-2b039258-5 canvas {{
   display: none !important;
 }}
-html.site-entered,
-body.site-entered {{
+html.site-entered {{
   height: auto !important;
   overflow-y: auto !important;
   overflow-x: hidden !important;
 }}
+body.site-entered {{
+  height: auto !important;
+  overflow-y: visible !important;
+  overflow-x: hidden !important;
+}}
 html.site-entered #page,
-body.site-entered #page {{
+body.site-entered #page,
+#page {{
   height: auto !important;
   overflow: visible !important;
+  clip-path: none !important;
+  view-transition-name: none !important;
+}}
+.sc-2b3d2147-1,
+.gGcwzA {{
+  position: -webkit-sticky !important;
+  position: sticky !important;
+  top: 0px !important;
+  z-index: 1 !important;
+  height: 100dvh !important;
+  width: 100% !important;
+}}
+.sc-2b3d2147-2,
+.lmcVrK {{
+  position: absolute !important;
+  inset: 0px !important;
+  width: 100% !important;
+  height: 100dvh !important;
+  z-index: 1 !important;
 }}
 html.site-entered [role="dialog"],
 body.site-entered [role="dialog"],
