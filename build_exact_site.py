@@ -265,50 +265,158 @@ HERO_BLEND_ENGINE = f"""
   }});
   observer.observe(document.body || document.documentElement, {{ childList: true, subtree: true }});
 
-  // Preloader & Scroll Unlock Controller
-  function unlockScrollAndEnter() {{
-    document.documentElement.classList.add('site-entered');
-    document.body.classList.add('site-entered');
-    document.documentElement.classList.remove('lenis-stopped');
+  // Interactive Preloader Controller
+  (function() {{
+    const s0 = document.getElementById("S:0");
+    if (s0) s0.removeAttribute("hidden");
 
-    document.querySelectorAll('.lenis').forEach(el => {{
-      el.classList.remove('lenis-stopped');
-      el.style.overflowY = 'auto';
-    }});
+    let isExiting = false;
+    function onEnter() {{
+      if (isExiting) return;
+      isExiting = true;
+      sessionStorage.setItem("forge_entered", "true");
 
-    document.querySelectorAll('[role="dialog"], aside').forEach(aside => {{
-      aside.classList.add('dismissed', 'preloader-dismissed');
-      aside.style.transition = 'opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1)';
-      aside.style.opacity = '0';
-      aside.style.pointerEvents = 'none';
-      const enterBtn = aside.querySelector('button');
-      if (enterBtn) {{
-        try {{ enterBtn.click(); }} catch (e) {{}}
+      const curDialog = document.querySelector('[role="dialog"]');
+      if (curDialog) {{
+        const wordsEl = curDialog.querySelector("[data-cinematic-words]");
+        if (wordsEl) {{
+          const spans = wordsEl.querySelectorAll(".cinematic-word");
+          spans.forEach(s => {{
+            s.style.transition = "all 0.5s cubic-bezier(0.16,1,0.3,1)";
+            s.style.opacity = "0";
+            s.style.filter = "blur(0.8rem)";
+            s.style.transform = "translateY(-12px)";
+          }});
+        }}
+        const enterContainer = curDialog.querySelector(".preloader-enter-container");
+        if (enterContainer) {{
+          enterContainer.style.transition = "all 0.4s cubic-bezier(0.16,1,0.3,1)";
+          enterContainer.style.opacity = "0";
+          enterContainer.style.transform = "translateY(16px)";
+        }}
+
+        curDialog.style.transition = "opacity 0.8s cubic-bezier(0.16,1,0.3,1)";
+        curDialog.style.opacity = "0";
+        curDialog.style.pointerEvents = "none";
       }}
+
+      document.documentElement.classList.add("site-entered");
+      document.body.classList.add("site-entered");
+      document.documentElement.classList.remove("lenis-stopped");
+      document.querySelectorAll(".lenis").forEach(el => {{
+        el.classList.remove("lenis-stopped");
+        el.style.overflowY = "auto";
+      }});
+
+      const introVid = document.querySelector(".hero-blend-intro");
+      if (introVid && introVid.paused) {{
+        introVid.play().catch(() => {{}});
+      }}
+
       setTimeout(() => {{
-        aside.style.display = 'none';
-      }}, 600);
-    }});
-
-    const video = document.querySelector('.hero-blend-intro');
-    if (video && video.paused && video.currentTime < ((video.duration || 4.1) - 0.1)) {{
-      video.play().catch(() => {{}});
+        if (curDialog) {{
+          curDialog.style.display = "none";
+          if (curDialog.parentNode && window.__origRemoveChild) {{
+            window.__origRemoveChild.call(curDialog.parentNode, curDialog);
+          }}
+        }}
+      }}, 850);
     }}
-  }}
 
-  if (document.readyState === 'loading') {{
-    document.addEventListener('DOMContentLoaded', initUnlock);
-  }} else {{
-    initUnlock();
-  }}
+    // Global capture-phase listeners always active
+    document.addEventListener("click", (e) => {{
+      const b = e.target.closest("button, [aria-label='Enter Website'], .sc-60e682e4-7, .preloader-enter-btn");
+      if (b) {{
+        onEnter();
+      }}
+    }}, true);
 
-  function initUnlock() {{
-    setTimeout(unlockScrollAndEnter, 1400);
+    window.addEventListener("keydown", (e) => {{
+      if ((e.key === "Enter" || e.key === " ") && !sessionStorage.getItem("forge_entered")) {{
+        onEnter();
+      }}
+    }}, true);
 
-    ['click', 'wheel', 'touchstart', 'keydown'].forEach(evt => {{
-      window.addEventListener(evt, unlockScrollAndEnter, {{ once: true, passive: true }});
-    }});
-  }}
+    // Initial preloader setup
+    function setupPreloader() {{
+      const dialog = document.querySelector('[role="dialog"]');
+      if (!dialog) return;
+
+      const forceShow = window.location.search.includes("preloader=1");
+      const alreadyEntered = !forceShow && sessionStorage.getItem("forge_entered") === "true";
+      if (alreadyEntered) {{
+        dialog.style.display = "none";
+        document.documentElement.classList.add("site-entered");
+        document.body.classList.add("site-entered");
+        document.documentElement.classList.remove("lenis-stopped");
+        document.querySelectorAll(".lenis").forEach(el => {{
+          el.classList.remove("lenis-stopped");
+          el.style.overflowY = "auto";
+        }});
+        const video = document.querySelector(".hero-blend-intro");
+        if (video && video.paused && video.currentTime < ((video.duration || 4.1) - 0.1)) {{
+          video.play().catch(() => {{}});
+        }}
+        return;
+      }}
+
+      dialog.style.display = "grid";
+      dialog.style.opacity = "1";
+
+      const wordsEl = dialog.querySelector("[data-cinematic-words]");
+      const progressBox = dialog.querySelector(".sc-60e682e4-4");
+      const progressBar = dialog.querySelector(".cGDbxd");
+      const enterContainer = dialog.querySelector(".preloader-enter-container");
+
+      if (wordsEl && !wordsEl.dataset.split) {{
+        wordsEl.dataset.split = "true";
+        const txt = wordsEl.textContent.trim();
+        const words = txt.split(/\\s+/);
+        wordsEl.innerHTML = words.map(w => `<span class="cinematic-word" style="display:inline-block; margin-right:0.35em; opacity:0; filter:blur(0.8rem); transform:translateY(12px); will-change:opacity,filter,transform; transition:opacity 0.65s cubic-bezier(0.16,1,0.3,1), filter 0.65s cubic-bezier(0.16,1,0.3,1), transform 0.65s cubic-bezier(0.16,1,0.3,1);">${{w}}</span>`).join("");
+        wordsEl.style.visibility = "visible";
+        wordsEl.style.opacity = "1";
+
+        const spans = wordsEl.querySelectorAll(".cinematic-word");
+        spans.forEach((span, idx) => {{
+          setTimeout(() => {{
+            span.style.opacity = "1";
+            span.style.filter = "blur(0)";
+            span.style.transform = "translateY(0)";
+          }}, 200 + idx * 110);
+        }});
+      }}
+
+      if (progressBar) {{
+        progressBar.style.transition = "transform 2.2s cubic-bezier(0.25, 1, 0.5, 1)";
+        setTimeout(() => {{
+          progressBar.style.transform = "scaleX(1)";
+        }}, 300);
+      }}
+
+      setTimeout(() => {{
+        if (progressBox) {{
+          progressBox.style.transition = "opacity 0.35s ease";
+          progressBox.style.opacity = "0";
+          setTimeout(() => {{ progressBox.style.display = "none"; }}, 350);
+        }}
+        if (enterContainer) {{
+          enterContainer.style.display = "flex";
+          enterContainer.style.opacity = "0";
+          enterContainer.style.transform = "translateY(16px)";
+          enterContainer.style.transition = "opacity 0.6s cubic-bezier(0.16,1,0.3,1), transform 0.6s cubic-bezier(0.16,1,0.3,1)";
+          requestAnimationFrame(() => {{
+            enterContainer.style.opacity = "1";
+            enterContainer.style.transform = "translateY(0)";
+          }});
+        }}
+      }}, 2300);
+    }}
+
+    setupPreloader();
+    if (document.readyState === "loading") {{
+      document.addEventListener("DOMContentLoaded", setupPreloader);
+    }}
+  }})();
 }})();
 </script>
 <style id="hero-blend-styles">
@@ -316,18 +424,61 @@ HERO_BLEND_ENGINE = f"""
 .sc-2b039258-5 canvas {{
   display: none !important;
 }}
-aside.dismissed,
-aside.preloader-dismissed,
-[role="dialog"].dismissed,
-[role="dialog"].preloader-dismissed,
-html.site-entered aside,
-html.site-entered [role="dialog"],
-body.site-entered aside,
-body.site-entered [role="dialog"] {{
-  display: none !important;
-  opacity: 0 !important;
-  visibility: hidden !important;
-  pointer-events: none !important;
+.sc-60e682e4-0 {{
+  pointer-events: auto !important;
+}}
+.sc-60e682e4-2,
+.sc-60e682e4-3,
+.sc-60e682e4-7,
+.preloader-enter-btn,
+[aria-label="Enter Website"] {{
+  position: relative !important;
+  z-index: 1000 !important;
+  pointer-events: auto !important;
+  cursor: pointer !important;
+}}
+.preloader-enter-btn {{
+  background: transparent;
+  border: none;
+  color: var(--brand-bc5, #F2F1ED);
+  font-family: inherit;
+  font-size: 1.05rem;
+  font-weight: 600;
+  letter-spacing: 0.35rem;
+  text-transform: uppercase;
+  cursor: pointer;
+  position: relative;
+  padding: 0.75rem 1.8rem;
+  overflow: hidden;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}}
+.preloader-enter-btn .enter-text-wrap {{
+  display: inline-flex;
+  position: relative;
+}}
+.preloader-enter-btn .enter-text-wrap > span {{
+  display: inline-block;
+  transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1), color 0.3s ease;
+}}
+.preloader-enter-btn:hover .enter-text-wrap > span {{
+  transform: translateY(-3px);
+  color: #fff;
+}}
+.preloader-enter-btn::after {{
+  content: '';
+  position: absolute;
+  bottom: 4px;
+  left: 15%;
+  width: 70%;
+  height: 1px;
+  background: var(--brand-bc5, #F2F1ED);
+  opacity: 0.5;
+  transform: scaleX(0.5);
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.4s ease;
+}}
+.preloader-enter-btn:hover::after {{
+  transform: scaleX(1);
+  opacity: 1;
 }}
 html .lenis.lenis-stopped:not(.lenis-autoToggle) {{
   overflow: auto !important;
@@ -346,6 +497,16 @@ RUNTIME_HEAD_INJECTION = f"""
   const isGh = window.location.hostname.includes('github.io') || window.location.pathname.startsWith('{BASE_PATH}');
   window.__BASE_PATH__ = isGh ? '{BASE_PATH}' : '';
   window.TURBOPACK_CHUNK_BASE_PATH = (isGh ? '{BASE_PATH}' : '') + '/_next/';
+
+  // Protect preloader root from unmounting by React DOM during client hydration
+  const origRemoveChild = Node.prototype.removeChild;
+  Node.prototype.removeChild = function(child) {{
+    if (child && (child.id === 'forge-preloader-root' || (child.getAttribute && child.getAttribute('role') === 'dialog'))) {{
+      return child;
+    }}
+    return origRemoveChild.apply(this, arguments);
+  }};
+  window.__origRemoveChild = origRemoveChild;
 }})();
 </script>
 <script id="runtime-image-guard">
@@ -484,9 +645,34 @@ def process_page(slug):
     if '<head>' in html:
         html = html.replace('<head>', f'<head>\n{RUNTIME_HEAD_INJECTION}')
 
-    # If home page, inject 2-video scroll blend engine
+    # If home page, unhide preloader, inject Enter markup and 2-video scroll blend engine
     if slug == '':
+        html = html.replace('<div hidden id="S:0">', '<div id="S:0">')
+        html = html.replace('<div hidden="" id="S:0">', '<div id="S:0">')
+        enter_markup = """<div class="sc-60e682e4-3 eAUikG preloader-enter-container" style="display:none; flex-direction:column; align-items:center; text-align:center; opacity:0; transform:translateY(12px); will-change:opacity,transform; margin-top:1.5rem;"><button type="button" aria-label="Enter Website" class="sc-60e682e4-7 Wejkv preloader-enter-btn"><span class="enter-text-wrap"><span>E</span><span>n</span><span>t</span><span>e</span><span>r</span></span></button><span class="sc-60e682e4-6 eIFaFQ preloader-cookie-notice" style="margin-top:0.75rem; font-size:0.75rem; letter-spacing:0.06rem; color:rgba(242,241,237,0.5); text-transform:uppercase; font-family:var(--font-body,sans-serif); max-width:380px; line-height:1.4;">By pressing “Enter” on this website, you accept the use of cookies for analytics</span></div>"""
+        html = re.sub(r'(<div class="sc-60e682e4-5 cGDbxd"></div></div>)', rf'\1{enter_markup}', html)
+        html = re.sub(r'<img([^>]+alt="Three custom Forge vehicles[^>]+)src="data:image/gif;base64,[^"]+"([^>]*)>',
+                      rf'<img\1src="{BASE_PATH}/assets/cars/9ae611ac36488077eadfc0d1f8a5aa163aae1c8e-880x1592.jpg"\2>', html)
         html = html.replace('</body>', f'{HERO_BLEND_ENGINE}\n</body>')
+
+    # If builds catalog page, restore all 7 build cards with their authentic photography
+    if slug == 'builds':
+        card_map = {
+            'Porsche 911': 'fdaa9824ff8842641b99786a35370f65f6ec521d-880x1592.jpg',
+            'Defender 130': 'd44ccc566e08123c477f06b6eee3aec7c01de1f7-880x1592.jpg',
+            'Lamborghini Urus': '0109009941f809c9ec799f8cb8331a3dfa054074-880x1592.jpg',
+            'BMW M5': '422b56f1c62d29f61f570927fafcf0016fb731aa-880x1592.jpg',
+            'Mercedes G63': 'f44102fb39a1f2853a2b050188e2ec2c66b4bcca-880x1592.jpg',
+        }
+        def replace_deferred_build(match):
+            tag = match.group(0)
+            for k, v in card_map.items():
+                if k in tag:
+                    tag = re.sub(r'src="data:image/gif;base64,[^"]+"', f'src="{BASE_PATH}/assets/cars/{v}"', tag)
+                    tag = tag.replace('data-deferred="true"', '')
+                    break
+            return tag
+        html = re.sub(r'<img[^>]+data-deferred="true"[^>]*>', replace_deferred_build, html)
 
     os.makedirs(out_dir, exist_ok=True)
     with open(out_file, 'w', encoding='utf-8') as f:
