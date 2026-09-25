@@ -88,11 +88,15 @@
     return origSetAttr.call(this, name, val);
   };
 
+  let creditsCleaned = false;
   function cleanCredits() {
+    if (creditsCleaned) return;
     const powered = document.querySelectorAll('[data-name="powered"], a[aria-label="Navigate to WRPD"]');
+    let found = false;
     powered.forEach(function(el) {
       const a = el.tagName === 'A' ? el : el.querySelector('a');
       if (a) {
+        found = true;
         a.href = 'https://github.com/gurination1';
         a.setAttribute('aria-label', 'Made by Gurdharam');
         a.textContent = 'Made by Gurdharam';
@@ -100,34 +104,15 @@
     });
     const siteby = document.querySelectorAll('[data-name="siteby"]');
     siteby.forEach(function(el) { el.remove(); });
-  }
-
-  if (typeof MutationObserver !== 'undefined') {
-    const mo = new MutationObserver(function(mutations) {
-      cleanCredits();
-      for (let i = 0; i < mutations.length; i++) {
-        const m = mutations[i];
-        if (m.type === 'childList') {
-          for (let j = 0; j < m.addedNodes.length; j++) {
-            const node = m.addedNodes[j];
-            if (node.nodeType === 1) {
-              if (node.tagName === 'IMG') cleanImg(node);
-              if (node.querySelectorAll) {
-                const nested = node.querySelectorAll('img');
-                for (let k = 0; k < nested.length; k++) cleanImg(nested[k]);
-              }
-            }
-          }
-        } else if (m.type === 'attributes') {
-          cleanImg(m.target);
-        }
-      }
-    });
-    mo.observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ['src', 'srcset'] });
+    if (found) creditsCleaned = true;
   }
 
   document.addEventListener('DOMContentLoaded', function() {
     document.querySelectorAll('img').forEach(cleanImg);
+    cleanCredits();
+  });
+
+  window.addEventListener('load', function() {
     cleanCredits();
   });
 })();

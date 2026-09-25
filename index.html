@@ -88,11 +88,15 @@
     return origSetAttr.call(this, name, val);
   };
 
+  let creditsCleaned = false;
   function cleanCredits() {
+    if (creditsCleaned) return;
     const powered = document.querySelectorAll('[data-name="powered"], a[aria-label="Navigate to WRPD"]');
+    let found = false;
     powered.forEach(function(el) {
       const a = el.tagName === 'A' ? el : el.querySelector('a');
       if (a) {
+        found = true;
         a.href = 'https://github.com/gurination1';
         a.setAttribute('aria-label', 'Made by Gurdharam');
         a.textContent = 'Made by Gurdharam';
@@ -100,34 +104,15 @@
     });
     const siteby = document.querySelectorAll('[data-name="siteby"]');
     siteby.forEach(function(el) { el.remove(); });
-  }
-
-  if (typeof MutationObserver !== 'undefined') {
-    const mo = new MutationObserver(function(mutations) {
-      cleanCredits();
-      for (let i = 0; i < mutations.length; i++) {
-        const m = mutations[i];
-        if (m.type === 'childList') {
-          for (let j = 0; j < m.addedNodes.length; j++) {
-            const node = m.addedNodes[j];
-            if (node.nodeType === 1) {
-              if (node.tagName === 'IMG') cleanImg(node);
-              if (node.querySelectorAll) {
-                const nested = node.querySelectorAll('img');
-                for (let k = 0; k < nested.length; k++) cleanImg(nested[k]);
-              }
-            }
-          }
-        } else if (m.type === 'attributes') {
-          cleanImg(m.target);
-        }
-      }
-    });
-    mo.observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ['src', 'srcset'] });
+    if (found) creditsCleaned = true;
   }
 
   document.addEventListener('DOMContentLoaded', function() {
     document.querySelectorAll('img').forEach(cleanImg);
+    cleanCredits();
+  });
+
+  window.addEventListener('load', function() {
     cleanCredits();
   });
 })();
@@ -1076,9 +1061,15 @@ $RC=function(a,b){if(b=document.getElementById(b))(a=document.getElementById(a))
 <!-- Smooth 2-Video Scroll Blend Engine (Non-looping intro + Lenis-aware scroll scrub) -->
 <script id="hero-blend-engine">
 (function() {
+  let heroMediaAttached = false;
   function ensureHeroMedia() {
+    if (heroMediaAttached) return;
     const container = document.querySelector(".sc-2b039258-5") || document.querySelector("section.sc-2b039258-0");
     if (!container) return;
+    heroMediaAttached = true;
+    if (typeof heroObserver !== 'undefined' && heroObserver) {
+      try { heroObserver.disconnect(); } catch(e) {}
+    }
 
     const oldContinuous = container.querySelector(".hero-continuous-media");
     if (oldContinuous) oldContinuous.remove();
@@ -1258,11 +1249,14 @@ $RC=function(a,b){if(b=document.getElementById(b))(a=document.getElementById(a))
     updateTargetProgress();
   }
 
+  let heroObserver = null;
   ensureHeroMedia();
-  const observer = new MutationObserver(() => {
-    ensureHeroMedia();
-  });
-  observer.observe(document.body || document.documentElement, { childList: true, subtree: true });
+  if (!heroMediaAttached && typeof MutationObserver !== 'undefined') {
+    heroObserver = new MutationObserver(() => {
+      ensureHeroMedia();
+    });
+    heroObserver.observe(document.body || document.documentElement, { childList: true, subtree: true });
+  }
 
   // Interactive Preloader Controller
   (function() {
@@ -1328,7 +1322,7 @@ $RC=function(a,b){if(b=document.getElementById(b))(a=document.getElementById(a))
 
     // Global capture-phase listeners always active
     document.addEventListener("click", (e) => {
-      const b = e.target.closest("button, [aria-label='Enter Website'], .sc-60e682e4-7, .preloader-enter-btn");
+      const b = e.target.closest("button, [aria-label='Enter Website'], .sc-60e682e4-7, .preloader-enter-btn, [role='dialog']");
       if (b) {
         onEnter();
       }
@@ -1376,6 +1370,18 @@ $RC=function(a,b){if(b=document.getElementById(b))(a=document.getElementById(a))
         if (video && video.paused && video.currentTime < ((video.duration || 4.1) - 0.1)) {
           video.play().catch(() => {});
         }
+      } else {
+        // Guarantee: ensure enter button is visible and active after 3.2s
+        setTimeout(() => {
+          if (!isExiting && sessionStorage.getItem("forge_entered") !== "true") {
+            const btn = document.querySelector('[aria-label="Enter Website"], button.sc-60e682e4-7, .preloader-enter-btn');
+            if (btn) {
+              btn.style.setProperty('opacity', '1', 'important');
+              btn.style.setProperty('visibility', 'visible', 'important');
+              btn.style.setProperty('pointer-events', 'auto', 'important');
+            }
+          }
+        }, 3200);
       }
     }
 

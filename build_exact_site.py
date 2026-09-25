@@ -77,9 +77,15 @@ HERO_BLEND_ENGINE = f"""
 <!-- Smooth 2-Video Scroll Blend Engine (Non-looping intro + Lenis-aware scroll scrub) -->
 <script id="hero-blend-engine">
 (function() {{
+  let heroMediaAttached = false;
   function ensureHeroMedia() {{
+    if (heroMediaAttached) return;
     const container = document.querySelector(".sc-2b039258-5") || document.querySelector("section.sc-2b039258-0");
     if (!container) return;
+    heroMediaAttached = true;
+    if (typeof heroObserver !== 'undefined' && heroObserver) {{
+      try {{ heroObserver.disconnect(); }} catch(e) {{}}
+    }}
 
     const oldContinuous = container.querySelector(".hero-continuous-media");
     if (oldContinuous) oldContinuous.remove();
@@ -259,11 +265,14 @@ HERO_BLEND_ENGINE = f"""
     updateTargetProgress();
   }}
 
+  let heroObserver = null;
   ensureHeroMedia();
-  const observer = new MutationObserver(() => {{
-    ensureHeroMedia();
-  }});
-  observer.observe(document.body || document.documentElement, {{ childList: true, subtree: true }});
+  if (!heroMediaAttached && typeof MutationObserver !== 'undefined') {{
+    heroObserver = new MutationObserver(() => {{
+      ensureHeroMedia();
+    }});
+    heroObserver.observe(document.body || document.documentElement, {{ childList: true, subtree: true }});
+  }}
 
   // Interactive Preloader Controller
   (function() {{
@@ -329,7 +338,7 @@ HERO_BLEND_ENGINE = f"""
 
     // Global capture-phase listeners always active
     document.addEventListener("click", (e) => {{
-      const b = e.target.closest("button, [aria-label='Enter Website'], .sc-60e682e4-7, .preloader-enter-btn");
+      const b = e.target.closest("button, [aria-label='Enter Website'], .sc-60e682e4-7, .preloader-enter-btn, [role='dialog']");
       if (b) {{
         onEnter();
       }}
@@ -377,6 +386,18 @@ HERO_BLEND_ENGINE = f"""
         if (video && video.paused && video.currentTime < ((video.duration || 4.1) - 0.1)) {{
           video.play().catch(() => {{}});
         }}
+      }} else {{
+        // Guarantee: ensure enter button is visible and active after 3.2s
+        setTimeout(() => {{
+          if (!isExiting && sessionStorage.getItem("forge_entered") !== "true") {{
+            const btn = document.querySelector('[aria-label="Enter Website"], button.sc-60e682e4-7, .preloader-enter-btn');
+            if (btn) {{
+              btn.style.setProperty('opacity', '1', 'important');
+              btn.style.setProperty('visibility', 'visible', 'important');
+              btn.style.setProperty('pointer-events', 'auto', 'important');
+            }}
+          }}
+        }}, 3200);
       }}
     }}
 
@@ -524,11 +545,15 @@ RUNTIME_HEAD_INJECTION = f"""
     return origSetAttr.call(this, name, val);
   }};
 
+  let creditsCleaned = false;
   function cleanCredits() {{
+    if (creditsCleaned) return;
     const powered = document.querySelectorAll('[data-name="powered"], a[aria-label="Navigate to WRPD"]');
+    let found = false;
     powered.forEach(function(el) {{
       const a = el.tagName === 'A' ? el : el.querySelector('a');
       if (a) {{
+        found = true;
         a.href = 'https://github.com/gurination1';
         a.setAttribute('aria-label', 'Made by Gurdharam');
         a.textContent = 'Made by Gurdharam';
@@ -536,34 +561,15 @@ RUNTIME_HEAD_INJECTION = f"""
     }});
     const siteby = document.querySelectorAll('[data-name="siteby"]');
     siteby.forEach(function(el) {{ el.remove(); }});
-  }}
-
-  if (typeof MutationObserver !== 'undefined') {{
-    const mo = new MutationObserver(function(mutations) {{
-      cleanCredits();
-      for (let i = 0; i < mutations.length; i++) {{
-        const m = mutations[i];
-        if (m.type === 'childList') {{
-          for (let j = 0; j < m.addedNodes.length; j++) {{
-            const node = m.addedNodes[j];
-            if (node.nodeType === 1) {{
-              if (node.tagName === 'IMG') cleanImg(node);
-              if (node.querySelectorAll) {{
-                const nested = node.querySelectorAll('img');
-                for (let k = 0; k < nested.length; k++) cleanImg(nested[k]);
-              }}
-            }}
-          }}
-        }} else if (m.type === 'attributes') {{
-          cleanImg(m.target);
-        }}
-      }}
-    }});
-    mo.observe(document.documentElement, {{ childList: true, subtree: true, attributes: true, attributeFilter: ['src', 'srcset'] }});
+    if (found) creditsCleaned = true;
   }}
 
   document.addEventListener('DOMContentLoaded', function() {{
     document.querySelectorAll('img').forEach(cleanImg);
+    cleanCredits();
+  }});
+
+  window.addEventListener('load', function() {{
     cleanCredits();
   }});
 }})();
@@ -668,6 +674,17 @@ if os.path.exists(menu_chunk_path):
             with open(menu_chunk_path, 'w', encoding='utf-8') as f:
                 f.write(m_code)
             print("Patched menu chunk: Made by Gurdharam")
+
+# Preloader chunk update: prevent infinite hang by allowing completion
+preloader_chunk_path = os.path.join(DEST_DIR, '_next/static/chunks/414eipoaws2vq.js')
+if os.path.exists(preloader_chunk_path):
+    with open(preloader_chunk_path, 'r', encoding='utf-8') as f:
+        p_code = f.read()
+    p_code = p_code.replace("w=void 0!==h&&h", "w=!0")
+    p_code = p_code.replace("Y=(F?K&&(!M||R):J)&&B", "Y=B||!0")
+    with open(preloader_chunk_path, 'w', encoding='utf-8') as f:
+        f.write(p_code)
+    print("Patched preloader chunk: guaranteed completion")
 
 # Ensure .nojekyll exists
 with open(os.path.join(DEST_DIR, '.nojekyll'), 'w') as f:
