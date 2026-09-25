@@ -72,9 +72,9 @@ def sanity_replacer(match):
         return match.group(0) # Keep OEM partner logo untouched
     return f"{BASE_PATH}/assets/cars/{mapped}"
 
-# Exact 2-Video Scroll Blend Engine from commit ce76018
+# Exact 2-Video Scroll Blend Engine (Non-looping intro + Lenis-aware scroll scrub)
 HERO_BLEND_ENGINE = f"""
-<!-- Smooth 2-Video Scroll Blend Engine (from commit ce76018) -->
+<!-- Smooth 2-Video Scroll Blend Engine (Non-looping intro + Lenis-aware scroll scrub) -->
 <script id="hero-blend-engine">
 (function() {{
   function ensureHeroMedia() {{
@@ -88,15 +88,24 @@ HERO_BLEND_ENGINE = f"""
 
     if (container.querySelector(".hero-blend-intro")) return;
 
-    // 1. Lineup Hero Video (Video 1 resting & looping)
+    // 1. Lineup Hero Video (Video 1 - Plays once and holds last frame, DOES NOT LOOP)
     const introVideo = document.createElement("video");
     introVideo.className = "hero-blend-intro";
     introVideo.autoplay = true;
-    introVideo.loop = true;
+    introVideo.loop = false;
     introVideo.muted = true;
     introVideo.playsInline = true;
     introVideo.poster = "{BASE_PATH}/assets/videos/hero_poster.jpg";
     introVideo.style.cssText = "position:absolute; inset:0; width:100%; height:100%; object-fit:cover; z-index:1; pointer-events:none; opacity:1; will-change:opacity,transform; transition:opacity 0.25s ease-out;";
+
+    introVideo.addEventListener("ended", () => {{
+      if (introVideo.duration) {{
+        try {{
+          introVideo.currentTime = Math.max(0, introVideo.duration - 0.04);
+        }} catch(e) {{}}
+      }}
+      introVideo.pause();
+    }});
 
     const s1 = document.createElement("source");
     s1.src = "{BASE_PATH}/assets/videos/hero_desktop.mp4";
@@ -108,7 +117,7 @@ HERO_BLEND_ENGINE = f"""
     introVideo.appendChild(s1);
     introVideo.appendChild(s2);
 
-    // 2. Flythrough Scrub Video (Video 2 - All-Intra 100% Keyframe for instant 120fps seeks)
+    // 2. Flythrough Scrub Video (Video 2 - All-Intra 100% Keyframe matching exact resolution 2560x1440)
     const scrollVideo = document.createElement("video");
     scrollVideo.className = "hero-blend-scroll";
     scrollVideo.autoplay = false;
@@ -120,11 +129,11 @@ HERO_BLEND_ENGINE = f"""
     scrollVideo.style.cssText = "position:absolute; inset:0; width:100%; height:100%; object-fit:cover; z-index:2; pointer-events:none; opacity:0; will-change:opacity; transition:opacity 0.2s cubic-bezier(0.16, 1, 0.3, 1);";
 
     const sc1 = document.createElement("source");
-    sc1.src = "{BASE_PATH}/assets/videos/scroll_desktop_intra.mp4";
+    sc1.src = "{BASE_PATH}/assets/videos/scroll_desktop_exact_intra.mp4";
     sc1.type = "video/mp4";
     sc1.media = "(min-width: 768px)";
     const sc2 = document.createElement("source");
-    sc2.src = "{BASE_PATH}/assets/videos/scroll_mobile_intra.mp4";
+    sc2.src = "{BASE_PATH}/assets/videos/scroll_mobile_exact_intra.mp4";
     sc2.type = "video/mp4";
     scrollVideo.appendChild(sc1);
     scrollVideo.appendChild(sc2);
@@ -133,13 +142,30 @@ HERO_BLEND_ENGINE = f"""
     container.insertBefore(introVideo, container.firstChild);
 
     introVideo.play().catch(() => {{}});
+    // Prime scrollVideo buffer for instant decoding
+    scrollVideo.load();
+    const primePromise = scrollVideo.play();
+    if (primePromise !== undefined) {{
+      primePromise.then(() => {{
+        scrollVideo.pause();
+        scrollVideo.currentTime = 0;
+      }}).catch(() => {{}});
+    }}
 
-    // 3. 3D Perspective Parallax Tilt on Hero Intro (matching original site, RAF-throttled)
+    // 3. Robust multi-source scroll reader (div.lenis + window + doc)
+    function getScrollY() {{
+      const lenisDiv = document.querySelector("div.lenis");
+      const lenisScroll = lenisDiv ? lenisDiv.scrollTop : 0;
+      const winScroll = window.scrollY || document.documentElement.scrollTop || (document.scrollingElement ? document.scrollingElement.scrollTop : 0) || 0;
+      return Math.max(lenisScroll, winScroll);
+    }}
+
+    // 4. 3D Perspective Parallax Tilt on Hero Intro (matching original site, RAF-throttled)
     let tiltRAF = null;
     let lastTiltX = 0;
     let lastTiltY = 0;
     window.addEventListener("pointermove", (e) => {{
-      const scrollY = window.scrollY || document.documentElement.scrollTop;
+      const scrollY = getScrollY();
       if (scrollY > 180) return;
       lastTiltX = (e.clientX / window.innerWidth - 0.5) * 2;
       lastTiltY = (e.clientY / window.innerHeight - 0.5) * 2;
@@ -151,44 +177,62 @@ HERO_BLEND_ENGINE = f"""
       }}
     }}, {{ passive: true }});
 
-    // 4. Ultra-Smooth Lerped Video Blend & Scrub Controller (Source-Site Architecture)
+    // 5. Ultra-Smooth Lerped Video Blend & Scrub Controller (Source-Site Architecture)
     let targetProgress = 0;
     let currentProgress = 0;
     let isSeeking = false;
 
     function updateTargetProgress() {{
-      const scrollY = window.scrollY || document.documentElement.scrollTop;
+      const scrollY = getScrollY();
       const heroSpacer = document.querySelector(".sc-2b3d2147-3") || document.querySelector(".fHUmBT");
       const spacerHeight = heroSpacer ? heroSpacer.offsetHeight : (window.innerHeight * 1.4);
       targetProgress = Math.min(1, Math.max(0, scrollY / spacerHeight));
     }}
 
     window.addEventListener("scroll", updateTargetProgress, {{ passive: true }});
+    document.addEventListener("scroll", updateTargetProgress, {{ passive: true, capture: true }});
+    const lenisContainer = document.querySelector("div.lenis");
+    if (lenisContainer) {{
+      lenisContainer.addEventListener("scroll", updateTargetProgress, {{ passive: true }});
+    }}
 
     scrollVideo.addEventListener("seeked", () => {{
       isSeeking = false;
     }});
 
     function renderScrubLoop() {{
+      // Always sample current scroll position on each RAF to capture Lenis momentum
+      updateTargetProgress();
+
       // Silky smooth lerp matching Lenis momentum
       const diff = targetProgress - currentProgress;
-      if (Math.abs(diff) > 0.0004) {{
-        currentProgress += diff * 0.16;
+      if (Math.abs(diff) > 0.001) {{
+        currentProgress += diff * 0.28;
       }} else {{
         currentProgress = targetProgress;
       }}
+      if (targetProgress === 0 && currentProgress < 0.08) {{
+        currentProgress = 0;
+      }}
+      if (targetProgress === 1 && currentProgress > 0.92) {{
+        currentProgress = 1;
+      }}
 
-      // Crossfade Blend: Progress 0.00 -> 0.18
-      const blendThreshold = 0.18;
+      // Crossfade Blend: Progress 0.00 -> 0.20
+      const blendThreshold = 0.20;
       if (currentProgress <= 0.005) {{
         scrollVideo.style.opacity = "0";
         introVideo.style.opacity = "1";
-        if (introVideo.paused) introVideo.play().catch(() => {{}});
+        if (introVideo.paused && introVideo.currentTime < ((introVideo.duration || 4.1) - 0.1)) {{
+          introVideo.play().catch(() => {{}});
+        }}
       }} else if (currentProgress < blendThreshold) {{
-        const ratio = (currentProgress - 0.005) / (blendThreshold - 0.005);
+        const ratio = (currentProgress - 0.008) / (blendThreshold - 0.008);
         scrollVideo.style.opacity = ratio.toFixed(4);
         introVideo.style.opacity = (1 - ratio).toFixed(4);
-        if (introVideo.paused) introVideo.play().catch(() => {{}});
+        if (introVideo.paused && introVideo.currentTime < ((introVideo.duration || 4.1) - 0.1)) {{
+          introVideo.play().catch(() => {{}});
+        }}
       }} else {{
         scrollVideo.style.opacity = "1";
         introVideo.style.opacity = "0";
@@ -198,7 +242,7 @@ HERO_BLEND_ENGINE = f"""
       // Non-blocking seek on all-intra video stream
       if (scrollVideo.duration && !scrollVideo.seeking && !isSeeking) {{
         const targetTime = Math.min(scrollVideo.duration - 0.04, currentProgress * scrollVideo.duration);
-        if (Math.abs(scrollVideo.currentTime - targetTime) > 0.02) {{
+        if (Math.abs(scrollVideo.currentTime - targetTime) > 0.015) {{
           isSeeking = true;
           if (typeof scrollVideo.fastSeek === 'function') {{
             scrollVideo.fastSeek(targetTime);
@@ -221,54 +265,50 @@ HERO_BLEND_ENGINE = f"""
   }});
   observer.observe(document.body || document.documentElement, {{ childList: true, subtree: true }});
 
-  // Preloader Enter Controller
-  document.addEventListener('DOMContentLoaded', () => {{
-    let entered = false;
-    function unlockScrollAndEnter() {{
-      if (entered) return;
-      entered = true;
+  // Preloader & Scroll Unlock Controller
+  function unlockScrollAndEnter() {{
+    document.documentElement.classList.add('site-entered');
+    document.body.classList.add('site-entered');
+    document.documentElement.classList.remove('lenis-stopped');
 
-      document.documentElement.classList.add('site-entered');
-      document.body.classList.add('site-entered');
-      document.documentElement.classList.remove('lenis-stopped');
-      document.documentElement.style.overflowY = 'auto';
-      document.documentElement.style.height = 'auto';
-      document.body.style.overflowY = 'auto';
-      document.body.style.height = 'auto';
-
-      document.querySelectorAll('aside.sc-60e682e4-0, aside').forEach(aside => {{
-        aside.classList.add('dismissed', 'preloader-dismissed');
-        aside.style.transition = 'opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1)';
-        aside.style.opacity = '0';
-        aside.style.pointerEvents = 'none';
-        const enterBtn = aside.querySelector('button');
-        if (enterBtn) {{
-          try {{ enterBtn.click(); }} catch (e) {{}}
-        }}
-        setTimeout(() => {{
-          aside.style.display = 'none';
-          if (aside.parentNode) aside.remove();
-        }}, 600);
-      }});
-
-      const video = document.querySelector('.hero-blend-intro');
-      if (video && video.paused) video.play().catch(() => {{}});
-    }}
-
-    document.addEventListener('click', (e) => {{
-      const btn = e.target.closest('button');
-      if (btn && (btn.getAttribute('aria-label') === 'Enter Website' || btn.textContent.toUpperCase().includes('ENTER'))) {{
-        unlockScrollAndEnter();
-      }}
-    }}, true);
-
-    document.addEventListener('click', (e) => {{
-      const aside = document.querySelector('aside.sc-60e682e4-0');
-      if (aside && !entered && e.target.closest('aside')) {{
-        unlockScrollAndEnter();
-      }}
+    document.querySelectorAll('.lenis').forEach(el => {{
+      el.classList.remove('lenis-stopped');
+      el.style.overflowY = 'auto';
     }});
-  }});
+
+    document.querySelectorAll('[role="dialog"], aside').forEach(aside => {{
+      aside.classList.add('dismissed', 'preloader-dismissed');
+      aside.style.transition = 'opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1)';
+      aside.style.opacity = '0';
+      aside.style.pointerEvents = 'none';
+      const enterBtn = aside.querySelector('button');
+      if (enterBtn) {{
+        try {{ enterBtn.click(); }} catch (e) {{}}
+      }}
+      setTimeout(() => {{
+        aside.style.display = 'none';
+      }}, 600);
+    }});
+
+    const video = document.querySelector('.hero-blend-intro');
+    if (video && video.paused && video.currentTime < ((video.duration || 4.1) - 0.1)) {{
+      video.play().catch(() => {{}});
+    }}
+  }}
+
+  if (document.readyState === 'loading') {{
+    document.addEventListener('DOMContentLoaded', initUnlock);
+  }} else {{
+    initUnlock();
+  }}
+
+  function initUnlock() {{
+    setTimeout(unlockScrollAndEnter, 1400);
+
+    ['click', 'wheel', 'touchstart', 'keydown'].forEach(evt => {{
+      window.addEventListener(evt, unlockScrollAndEnter, {{ once: true, passive: true }});
+    }});
+  }}
 }})();
 </script>
 <style id="hero-blend-styles">
@@ -276,18 +316,25 @@ HERO_BLEND_ENGINE = f"""
 .sc-2b039258-5 canvas {{
   display: none !important;
 }}
-aside.sc-60e682e4-0.dismissed,
+aside.dismissed,
 aside.preloader-dismissed,
-html.site-entered aside.sc-60e682e4-0,
-body.site-entered aside.sc-60e682e4-0 {{
+[role="dialog"].dismissed,
+[role="dialog"].preloader-dismissed,
+html.site-entered aside,
+html.site-entered [role="dialog"],
+body.site-entered aside,
+body.site-entered [role="dialog"] {{
   display: none !important;
   opacity: 0 !important;
   visibility: hidden !important;
   pointer-events: none !important;
 }}
-html, body {{
-  height: auto !important;
+html .lenis.lenis-stopped:not(.lenis-autoToggle) {{
+  overflow: auto !important;
+}}
+.lenis {{
   overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch;
 }}
 </style>
 """
