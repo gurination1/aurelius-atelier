@@ -1321,31 +1321,6 @@ $RC=function(a,b){if(b=document.getElementById(b))(a=document.getElementById(a))
       }
     }, true);
 
-    // Wheel and touch scroll momentum forwarding to .lenis container
-    window.addEventListener('wheel', (e) => {
-      const scroller = document.querySelector('.lenis');
-      if (scroller) {
-        scroller.scrollTop += e.deltaY;
-      }
-    }, { passive: true });
-
-    let touchStartY = 0;
-    window.addEventListener('touchstart', (e) => {
-      if (e.touches && e.touches[0]) {
-        touchStartY = e.touches[0].clientY;
-      }
-    }, { passive: true });
-    window.addEventListener('touchmove', (e) => {
-      if (e.touches && e.touches[0]) {
-        const delta = touchStartY - e.touches[0].clientY;
-        touchStartY = e.touches[0].clientY;
-        const scroller = document.querySelector('.lenis');
-        if (scroller) {
-          scroller.scrollTop += delta;
-        }
-      }
-    }, { passive: true });
-
     // Initial preloader setup
     function setupPreloader() {
       const forceShow = window.location.search.includes("preloader=1");
@@ -1360,11 +1335,6 @@ $RC=function(a,b){if(b=document.getElementById(b))(a=document.getElementById(a))
 
         document.documentElement.classList.add("site-entered");
         document.body.classList.add("site-entered");
-        document.documentElement.classList.remove("lenis-stopped");
-        document.querySelectorAll(".lenis").forEach(el => {
-          el.classList.remove("lenis-stopped");
-          el.style.overflowY = "auto";
-        });
 
         const h1 = document.querySelector('h1') || document.querySelector('.dpFkxc');
         if (h1) {
@@ -1402,67 +1372,9 @@ $RC=function(a,b){if(b=document.getElementById(b))(a=document.getElementById(a))
 .sc-2b039258-5 canvas {
   display: none !important;
 }
-.sc-60e682e4-0 {
-  pointer-events: auto !important;
-}
-.sc-60e682e4-2,
-.sc-60e682e4-3,
-.sc-60e682e4-7,
-.preloader-enter-btn,
-[aria-label="Enter Website"] {
-  position: relative !important;
-  z-index: 1000 !important;
-  pointer-events: auto !important;
-  cursor: pointer !important;
-}
-.preloader-enter-btn {
-  background: transparent;
-  border: none;
-  color: var(--brand-bc5, #F2F1ED);
-  font-family: inherit;
-  font-size: 1.05rem;
-  font-weight: 600;
-  letter-spacing: 0.35rem;
-  text-transform: uppercase;
-  cursor: pointer;
-  position: relative;
-  padding: 0.75rem 1.8rem;
-  overflow: hidden;
-  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-}
-.preloader-enter-btn .enter-text-wrap {
-  display: inline-flex;
-  position: relative;
-}
-.preloader-enter-btn .enter-text-wrap > span {
-  display: inline-block;
-  transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1), color 0.3s ease;
-}
-.preloader-enter-btn:hover .enter-text-wrap > span {
-  transform: translateY(-3px);
-  color: #fff;
-}
-.preloader-enter-btn::after {
-  content: '';
-  position: absolute;
-  bottom: 4px;
-  left: 15%;
-  width: 70%;
-  height: 1px;
-  background: var(--brand-bc5, #F2F1ED);
-  opacity: 0.5;
-  transform: scaleX(0.5);
-  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.4s ease;
-}
-.preloader-enter-btn:hover::after {
-  transform: scaleX(1);
-  opacity: 1;
-}
 html.site-entered [role="dialog"],
 body.site-entered [role="dialog"],
-.site-entered [role="dialog"],
-#S\:0.dismissed,
-div[id="S:0"].dismissed {
+.site-entered [role="dialog"] {
   display: none !important;
   opacity: 0 !important;
   visibility: hidden !important;
@@ -1498,23 +1410,6 @@ html.site-entered .sc-cf9722b1-0 {
   opacity: 1 !important;
   pointer-events: auto !important;
   transition: opacity 0.6s ease;
-}
-html .lenis.lenis-stopped:not(.lenis-autoToggle) {
-  overflow: auto !important;
-}
-.lenis {
-  overflow-y: auto !important;
-  -webkit-overflow-scrolling: touch;
-}
-html.site-entered .lenis,
-body.site-entered .lenis,
-.site-entered .lenis {
-  overflow-y: auto !important;
-  -webkit-overflow-scrolling: touch;
-}
-html.site-entered .lenis.lenis-stopped,
-body.site-entered .lenis.lenis-stopped {
-  overflow-y: auto !important;
 }
 </style>
 
