@@ -579,10 +579,15 @@ def process_page(slug):
     if '<head>' in html:
         html = html.replace('<head>', f'<head>\n{RUNTIME_HEAD_INJECTION}')
 
+    footer_picture = f'''<picture>
+<source media="(min-width: 1024px)" srcSet="{BASE_PATH}/assets/cars/c6f15b9448f9090f3c7d9f0b5fab4e3cbc8e7284-2880x1800.jpg 3840w, {BASE_PATH}/assets/cars/c6f15b9448f9090f3c7d9f0b5fab4e3cbc8e7284-2880x1800.jpg 2048w, {BASE_PATH}/assets/cars/c6f15b9448f9090f3c7d9f0b5fab4e3cbc8e7284-2880x1800.jpg 1920w, {BASE_PATH}/assets/cars/c6f15b9448f9090f3c7d9f0b5fab4e3cbc8e7284-2880x1800.jpg 1400w, {BASE_PATH}/assets/cars/c6f15b9448f9090f3c7d9f0b5fab4e3cbc8e7284-2880x1800.jpg 1080w, {BASE_PATH}/assets/cars/c6f15b9448f9090f3c7d9f0b5fab4e3cbc8e7284-2880x1800.jpg 750w" sizes="100vw"/>
+<img alt="Three custom Forge vehicles, a black Mercedes G-Wagen, a red Porsche 911 GT3, and a black Land Rover Defender, are parked on a dark surface." loading="lazy" decoding="async" srcSet="{BASE_PATH}/assets/cars/9ae611ac36488077eadfc0d1f8a5aa163aae1c8e-880x1592.jpg 880w" src="{BASE_PATH}/assets/cars/9ae611ac36488077eadfc0d1f8a5aa163aae1c8e-880x1592.jpg" width="880" height="1592" crossorigin="anonymous" data-deferred="false" style="position:absolute;height:100%;width:100%;left:0;top:0;right:0;bottom:0;color:transparent;" data-loaded="true" class="sc-b83f0c97-0 ckbPhL"/>
+</picture>'''
+    html = re.sub(r'<aside aria-hidden="true" class="[^"]*gXORHV[^"]*"><picture>.*?</picture></aside>',
+                  rf'<aside aria-hidden="true" class="sc-337305d3-0 sc-a2c8839e-1 kTCIhD gXORHV">{footer_picture}</aside>', html, flags=re.DOTALL)
+
     # If home page, inject 2-video scroll blend engine
     if slug == '':
-        html = re.sub(r'<img([^>]+alt="Three custom Forge vehicles[^>]+)src="data:image/gif;base64,[^"]+"([^>]*)>',
-                      rf'<img\1src="{BASE_PATH}/assets/cars/9ae611ac36488077eadfc0d1f8a5aa163aae1c8e-880x1592.jpg"\2>', html)
         html = html.replace('</body>', f'{HERO_BLEND_ENGINE}\n</body>')
 
     # If builds catalog page, restore all 7 build cards with their authentic photography
