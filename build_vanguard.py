@@ -26,15 +26,35 @@ PAGES = [
 VANGUARD_SVG = """<svg width="78" height="36" viewBox="0 0 78 36" fill="none" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="platGrad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="%23FFFFFF"/><stop offset="60%" stop-color="%23E2E2E6"/><stop offset="100%" stop-color="%239C9CA4"/></linearGradient><linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="%23FCEFD2"/><stop offset="50%" stop-color="%23D4AF37"/><stop offset="100%" stop-color="%238F6B28"/></linearGradient><linearGradient id="goldShine" x1="0%" y1="100%" x2="100%" y2="0%"><stop offset="0%" stop-color="%23A57F38"/><stop offset="50%" stop-color="%23FFFFFF"/><stop offset="100%" stop-color="%23C5A064"/></linearGradient></defs><g id="vanguard-emblem"><path d="M39 2 L26 18.5 H31.5 L39 9.5 L46.5 18.5 H52 Z" fill="url(%23platGrad)"/><path d="M39 2 L26 18.5 H31.5 L39 9.5 Z" fill="%23FFFFFF" opacity="0.85"/><path d="M39 6.5 L31.5 16 H35.5 L39 11.5 L42.5 16 H46.5 Z" fill="url(%23goldGrad)"/><path d="M39 6.5 L39 11.5 L42.5 16 H46.5 Z" fill="url(%23goldShine)"/><polygon points="39,9 36.5,13.5 39,15.5 41.5,13.5" fill="%23FFFFFF"/></g><text x="39" y="33" font-family="-apple-system, BlinkMacSystemFont, Didot, Bodoni MT, Cinzel, serif" font-size="6.8" font-weight="600" letter-spacing="0.26em" fill="%23FFFFFF" text-anchor="middle">VANGUARD</text></svg>"""
 
 VANGUARD_CSS = f"""<style id="vanguard-core-styles">
-  /* Permanent Luxury Vanguard Logo - Sized & Centered matching Forge original header */
+  /* Permanent Luxury Vanguard Logo - Exactly Centered Matching Forge Header */
+  a.glWlYP,
+  a[aria-label*="home"].glWlYP,
+  a[aria-label*="Vanguard"].glWlYP {{
+    position: absolute !important;
+    top: 40px !important;
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 78px !important;
+    height: 36px !important;
+    text-decoration: none !important;
+    z-index: 10 !important;
+  }}
+
   svg.sc-e576e939-0.logo,
   header svg.logo,
   a[aria-label*="home"] svg.logo,
   a[aria-label*="Forge"] svg,
   a[aria-label*="Vanguard"] svg,
   a.glWlYP svg {{
-    position: relative !important;
-    display: inline-block !important;
+    position: static !important;
+    top: auto !important;
+    left: auto !important;
+    transform: none !important;
+    margin: 0 auto !important;
+    display: block !important;
     width: 78px !important;
     height: 36px !important;
     max-width: 78px !important;
@@ -42,16 +62,6 @@ VANGUARD_CSS = f"""<style id="vanguard-core-styles">
     background-repeat: no-repeat !important;
     background-position: center !important;
     background-size: contain !important;
-  }}
-
-  a.glWlYP,
-  a[aria-label*="home"].glWlYP,
-  a[aria-label*="Vanguard"].glWlYP {{
-    width: 78px !important;
-    height: 36px !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
   }}
 
   /* Hide Forge vector paths with opacity/fill so React/GSAP getBBox never fails */
@@ -151,29 +161,31 @@ VANGUARD_SCRIPT = f"""<script id="vanguard-core-script">
     "philosophy_01": PREFIX + "/assets/cars/philosophy_01_identity.jpg",
     "philosophy_02": PREFIX + "/assets/cars/philosophy_02_insight.jpg",
     "philosophy_03": PREFIX + "/assets/cars/philosophy_03_cohesion.jpg",
+    // Section 3 artisan craft
+    "artisan_craft": PREFIX + "/assets/cars/artisan_leather_craft.jpg",
     // Ordinary cards
     "ordinary_01": PREFIX + "/assets/cars/ordinary_card_01.jpg",
     "ordinary_02": PREFIX + "/assets/cars/ordinary_card_02.jpg",
     "ordinary_03": PREFIX + "/assets/cars/ordinary_card_03.jpg",
     // Stock cards
     "stock_01": PREFIX + "/assets/cars/stock_01_defender_v8.jpg",
-    "stock_02": PREFIX + "/assets/cars/stock_02_aston_dbs.jpg",
+    "stock_02": PREFIX + "/assets/cars/aston_dbs_bespoke_hero.jpg",
     "stock_03": PREFIX + "/assets/cars/stock_03_porsche_gt3rs.jpg",
-    "stock_04": PREFIX + "/assets/cars/stock_04_urus_performante.jpg",
+    "stock_04": PREFIX + "/assets/cars/urus_performante_bespoke_hero.jpg",
     "stock_05": PREFIX + "/assets/cars/stock_05_g63_amg.jpg",
     "stock_06": PREFIX + "/assets/cars/stock_06_bentley_gt.jpg",
     // Builds cards
     "build_01": PREFIX + "/assets/cars/atelier_defender_luxury.jpg",
     "build_02": PREFIX + "/assets/cars/atelier_porsche_gt3.jpg",
-    "build_03": PREFIX + "/assets/cars/bespoke_defender_130.jpg",
+    "build_03": PREFIX + "/assets/cars/defender_130_bespoke_hero.jpg",
     // Subpage card routes
     "fa001": PREFIX + "/assets/cars/stock_01_defender_v8.jpg",
     "fa002": PREFIX + "/assets/cars/build_defender_110.jpg",
     "fa005": PREFIX + "/assets/cars/build_porsche_gt3rs.jpg",
     "fa006": PREFIX + "/assets/cars/build_amg_g63.jpg",
-    "fa007": PREFIX + "/assets/cars/bespoke_defender_130.jpg",
-    "fa008": PREFIX + "/assets/cars/stock_02_aston_dbs.jpg",
-    "fa009": PREFIX + "/assets/cars/stock_04_urus_performante.jpg",
+    "fa007": PREFIX + "/assets/cars/defender_130_bespoke_hero.jpg",
+    "fa008": PREFIX + "/assets/cars/aston_dbs_bespoke_hero.jpg",
+    "fa009": PREFIX + "/assets/cars/urus_performante_bespoke_hero.jpg",
     "stock_fa003": PREFIX + "/assets/cars/stock_porsche_gt3_white.jpg",
     // Footer & Hero
     "footer": PREFIX + "/assets/cars/atelier_fleet_lineup.jpg"
@@ -189,6 +201,17 @@ VANGUARD_SCRIPT = f"""<script id="vanguard-core-script">
     }} else if (el.tagName === "IMG") {{
       el.src = newUrl;
       if (el.srcset) el.srcset = newUrl;
+    }}
+  }}
+
+  function playIntroVideo() {{
+    const intro = document.querySelector(".hero-intro-video");
+    if (intro) {{
+      intro.currentTime = 0;
+      intro.style.display = "block";
+      intro.style.opacity = "1";
+      const p = intro.play();
+      if (p !== undefined) p.catch(() => {{}});
     }}
   }}
 
@@ -217,7 +240,6 @@ VANGUARD_SCRIPT = f"""<script id="vanguard-core-script">
     intro.muted = true;
     intro.playsInline = true;
     intro.preload = "auto";
-    intro.autoplay = true;
     intro.src = introSrc;
     intro.style.cssText = "position:absolute; inset:0; width:100%; height:100%; object-fit:cover; z-index:2; pointer-events:none;";
 
@@ -237,14 +259,19 @@ VANGUARD_SCRIPT = f"""<script id="vanguard-core-script">
     scroll.currentTime = 0;
     scroll.pause();
 
-    intro.currentTime = 0;
-    intro.play().catch(() => {{}});
-
     let introDone = false;
     intro.addEventListener("ended", () => {{
       introDone = true;
       intro.style.display = "none";
     }});
+
+    const hasEntered = sessionStorage.getItem("vanguard:entered") === "1" || !document.querySelector(".sc-60e682e4-0");
+    if (hasEntered) {{
+      playIntroVideo();
+    }} else {{
+      intro.currentTime = 0;
+      intro.pause();
+    }}
 
     function getScrollMetrics() {{
       const lenis = document.querySelector(".lenis");
@@ -255,7 +282,7 @@ VANGUARD_SCRIPT = f"""<script id="vanguard-core-script">
 
     function onScrollUpdate() {{
       const {{ y, docH }} = getScrollMetrics();
-      if (y > 10 && !introDone) {{
+      if (y > 30 && !introDone) {{
         introDone = true;
         intro.style.display = "none";
       }}
@@ -314,7 +341,13 @@ VANGUARD_SCRIPT = f"""<script id="vanguard-core-script">
       if (!philImgs[2].src.includes("philosophy_03")) replacePicture(philImgs[2], BESPOKE_MAP["philosophy_03"]);
     }}
 
-    // 2. Ordinary cards
+    // 2. Section 3 Artisan Leather Craft Background Image (Restores bespoke atelier craft)
+    const sec3Img = document.querySelector("section.sc-e85696e3-0 img");
+    if (sec3Img && !sec3Img.src.includes("artisan_leather_craft")) {{
+      replacePicture(sec3Img, BESPOKE_MAP["artisan_craft"]);
+    }}
+
+    // 3. Ordinary cards
     const ordImgs = document.querySelectorAll(".sc-dd0c2790-0 img");
     ordImgs.forEach((img, idx) => {{
       const key = "ordinary_0" + ((idx % 3) + 1);
@@ -323,25 +356,25 @@ VANGUARD_SCRIPT = f"""<script id="vanguard-core-script">
       }}
     }});
 
-    // 3. Stock cards
+    // 4. Stock cards
     const stockImgs = document.querySelectorAll(".sc-8d5ca2ab-0.hUxulM img, [data-listing-route*=\\"stock\\"] img");
     stockImgs.forEach((img, idx) => {{
       const key = "stock_0" + ((idx % 6) + 1);
-      if (BESPOKE_MAP[key] && !img.src.includes("stock_0")) {{
+      if (BESPOKE_MAP[key] && !img.src.includes("stock_0") && !img.src.includes("bespoke_hero")) {{
         replacePicture(img, BESPOKE_MAP[key]);
       }}
     }});
 
-    // 4. Builds cards
+    // 5. Builds cards
     const buildImgs = document.querySelectorAll(".sc-8d5ca2ab-0.ktTCgb img, [data-listing-route*=\\"builds\\"] img");
     buildImgs.forEach((img, idx) => {{
       const key = "build_0" + ((idx % 3) + 1);
-      if (BESPOKE_MAP[key] && !img.src.includes("atelier_") && !img.src.includes("bespoke_")) {{
+      if (BESPOKE_MAP[key] && !img.src.includes("atelier_") && !img.src.includes("defender_130_bespoke")) {{
         replacePicture(img, BESPOKE_MAP[key]);
       }}
     }});
 
-    // 5. Specific subpage build card links on /builds/
+    // 6. Specific subpage build card links on /builds/
     document.querySelectorAll("a[href*=\\"/builds/fa001\\"] img").forEach(img => replacePicture(img, BESPOKE_MAP["fa001"]));
     document.querySelectorAll("a[href*=\\"/builds/fa002\\"] img").forEach(img => replacePicture(img, BESPOKE_MAP["fa002"]));
     document.querySelectorAll("a[href*=\\"/builds/fa005\\"] img").forEach(img => replacePicture(img, BESPOKE_MAP["fa005"]));
@@ -350,16 +383,47 @@ VANGUARD_SCRIPT = f"""<script id="vanguard-core-script">
     document.querySelectorAll("a[href*=\\"/builds/fa008\\"] img").forEach(img => replacePicture(img, BESPOKE_MAP["fa008"]));
     document.querySelectorAll("a[href*=\\"/builds/fa009\\"] img").forEach(img => replacePicture(img, BESPOKE_MAP["fa009"]));
 
-    // 6. Specific subpage stock card link on /stock/
+    // 7. Subpage vehicle gallery replacements for fa007, fa008, fa009
+    const curPath = window.location.pathname;
+    if (curPath.includes("/fa007")) {{
+      const pool = [
+        PREFIX + "/assets/cars/defender_130_bespoke_hero.jpg",
+        PREFIX + "/assets/cars/defender_130_bespoke_rear.jpg",
+        PREFIX + "/assets/cars/defender_130_bespoke_interior.jpg"
+      ];
+      document.querySelectorAll("section img:not([src*=\\".svg\\"])").forEach((img, idx) => {{
+        replacePicture(img, pool[idx % pool.length]);
+      }});
+    }} else if (curPath.includes("/fa008")) {{
+      const pool = [
+        PREFIX + "/assets/cars/aston_dbs_bespoke_hero.jpg",
+        PREFIX + "/assets/cars/aston_dbs_bespoke_rear.jpg",
+        PREFIX + "/assets/cars/aston_dbs_bespoke_interior.jpg"
+      ];
+      document.querySelectorAll("section img:not([src*=\\".svg\\"])").forEach((img, idx) => {{
+        replacePicture(img, pool[idx % pool.length]);
+      }});
+    }} else if (curPath.includes("/fa009")) {{
+      const pool = [
+        PREFIX + "/assets/cars/urus_performante_bespoke_hero.jpg",
+        PREFIX + "/assets/cars/urus_performante_bespoke_rear.jpg",
+        PREFIX + "/assets/cars/urus_performante_bespoke_interior.jpg"
+      ];
+      document.querySelectorAll("section img:not([src*=\\".svg\\"])").forEach((img, idx) => {{
+        replacePicture(img, pool[idx % pool.length]);
+      }});
+    }}
+
+    // 8. Specific subpage stock card link on /stock/
     document.querySelectorAll("a[href*=\\"/stock/fa003\\"] img").forEach(img => replacePicture(img, BESPOKE_MAP["stock_fa003"]));
 
-    // 7. Footer
+    // 9. Footer
     const footerImg = document.querySelector("footer aside img");
     if (footerImg && !footerImg.src.includes("atelier_fleet_lineup")) {{
       replacePicture(footerImg, BESPOKE_MAP["footer"]);
     }}
 
-    // 8. Global Sanity Hash Interceptor (Replaces ALL Sanity images across ALL pages & galleries)
+    // 10. Global Sanity Hash Interceptor (Replaces ALL Sanity images across ALL pages & galleries)
     document.querySelectorAll("img, picture source").forEach(el => {{
       const src = el.tagName === "SOURCE" ? el.srcset : el.src;
       if (!src || !src.includes("cdn.sanity.io")) return;
@@ -442,20 +506,21 @@ VANGUARD_SCRIPT = f"""<script id="vanguard-core-script">
 
   // Hook into Enter button click or keyboard
   document.addEventListener("click", (e) => {{
-    const btn = e.target.closest("button[aria-label=\\"Enter Website\\"]") || (e.target.closest(".sc-60e682e4-0 button") && e.target.closest("button").innerText.includes("Enter"));
+    const btn = e.target.closest("button[aria-label=\\"Enter Website\\"]") || 
+                (e.target.closest(".sc-60e682e4-0 button") && e.target.closest("button").innerText.includes("Enter")) ||
+                e.target.closest(".sc-60e682e4-0");
     if (btn) {{
       sessionStorage.setItem("vanguard:entered", "1");
+      playIntroVideo();
       setTimeout(activateMaster, 50);
     }}
   }});
 
   document.addEventListener("keydown", (e) => {{
     if (e.key === "Enter") {{
-      const btn = document.querySelector("button[aria-label=\\"Enter Website\\"]");
-      if (btn) {{
-        sessionStorage.setItem("vanguard:entered", "1");
-        setTimeout(activateMaster, 50);
-      }}
+      sessionStorage.setItem("vanguard:entered", "1");
+      playIntroVideo();
+      setTimeout(activateMaster, 50);
     }}
   }});
 
