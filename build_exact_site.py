@@ -77,163 +77,173 @@ HERO_BLEND_ENGINE = f"""
 <!-- Smooth 2-Video Scroll Blend Engine (Non-looping intro + Lenis-aware scroll scrub) -->
 <script id="hero-blend-engine">
 (function() {{
-  let heroMediaAttached = false;
+  let introVideo = null;
+  let scrollVideo = null;
+  let heroWrapper = null;
+
   function ensureHeroMedia() {{
-    if (heroMediaAttached) return;
-    const container = document.querySelector(".sc-2b039258-5") || document.querySelector("section.sc-2b039258-0");
-    if (!container) return;
-    heroMediaAttached = true;
-    if (typeof heroObserver !== 'undefined' && heroObserver) {{
-      try {{ heroObserver.disconnect(); }} catch(e) {{}}
+    const heroSection = document.querySelector("section.sc-2b039258-0") || document.querySelector(".sc-2b3d2147-2");
+    if (!heroSection) return;
+
+    if (!heroWrapper) {{
+      heroWrapper = document.createElement("div");
+      heroWrapper.id = "hero-blend-wrapper";
+      heroWrapper.className = "hero-blend-wrapper";
+      heroWrapper.style.cssText = "position:absolute; inset:0; width:100%; height:100%; overflow:hidden; pointer-events:none; z-index:0;";
+
+      // 1. Lineup Hero Video (Video 1 - Plays once and holds last frame, DOES NOT LOOP)
+      introVideo = document.createElement("video");
+      introVideo.className = "hero-blend-intro";
+      introVideo.autoplay = false;
+      introVideo.loop = false;
+      introVideo.muted = true;
+      introVideo.playsInline = true;
+      introVideo.preload = "auto";
+      introVideo.poster = "{BASE_PATH}/assets/videos/hero_poster.jpg";
+      introVideo.style.cssText = "position:absolute; inset:0; width:100%; height:100%; object-fit:cover; z-index:1; pointer-events:none; opacity:1; will-change:opacity,transform; transition:opacity 0.25s ease-out;";
+
+      introVideo.addEventListener("ended", () => {{
+        if (introVideo.duration) {{
+          try {{
+            introVideo.currentTime = Math.max(0, introVideo.duration - 0.04);
+          }} catch(e) {{}}
+        }}
+        introVideo.pause();
+      }});
+
+      const s1 = document.createElement("source");
+      s1.src = "{BASE_PATH}/assets/videos/hero_desktop_4k.mp4";
+      s1.type = "video/mp4";
+      s1.media = "(min-width: 768px)";
+      const s2 = document.createElement("source");
+      s2.src = "{BASE_PATH}/assets/videos/hero_mobile_upscaled.mp4";
+      s2.type = "video/mp4";
+      introVideo.appendChild(s1);
+      introVideo.appendChild(s2);
+
+      // 2. Flythrough Scrub Video (Video 2 - All-Intra 100% Keyframe 4K/FHD)
+      scrollVideo = document.createElement("video");
+      scrollVideo.className = "hero-blend-scroll";
+      scrollVideo.autoplay = false;
+      scrollVideo.loop = false;
+      scrollVideo.muted = true;
+      scrollVideo.playsInline = true;
+      scrollVideo.preload = "auto";
+      scrollVideo.poster = "{BASE_PATH}/assets/videos/hero_settled_frame.jpg";
+      scrollVideo.style.cssText = "position:absolute; inset:0; width:100%; height:100%; object-fit:cover; z-index:2; pointer-events:none; opacity:0; will-change:opacity; transition:opacity 0.2s cubic-bezier(0.16, 1, 0.3, 1);";
+
+      const sc1 = document.createElement("source");
+      sc1.src = "{BASE_PATH}/assets/videos/scroll_desktop_4k_intra.mp4";
+      sc1.type = "video/mp4";
+      sc1.media = "(min-width: 768px)";
+      const sc2 = document.createElement("source");
+      sc2.src = "{BASE_PATH}/assets/videos/scroll_mobile_fhd_intra.mp4";
+      sc2.type = "video/mp4";
+      scrollVideo.appendChild(sc1);
+      scrollVideo.appendChild(sc2);
+
+      heroWrapper.appendChild(scrollVideo);
+      heroWrapper.appendChild(introVideo);
+
+      // Prime scrollVideo buffer for instant decoding
+      scrollVideo.load();
     }}
 
-    const oldContinuous = container.querySelector(".hero-continuous-media");
-    if (oldContinuous) oldContinuous.remove();
-
-    document.querySelectorAll(".hero-bg-media").forEach(el => el.remove());
-
-    if (container.querySelector(".hero-blend-intro")) return;
-
-    // 1. Lineup Hero Video (Video 1 - Plays once and holds last frame, DOES NOT LOOP)
-    const introVideo = document.createElement("video");
-    introVideo.className = "hero-blend-intro";
-    introVideo.autoplay = true;
-    introVideo.loop = false;
-    introVideo.muted = true;
-    introVideo.playsInline = true;
-    introVideo.poster = "{BASE_PATH}/assets/videos/hero_poster.jpg";
-    introVideo.style.cssText = "position:absolute; inset:0; width:100%; height:100%; object-fit:cover; z-index:1; pointer-events:none; opacity:1; will-change:opacity,transform; transition:opacity 0.25s ease-out;";
-
-    introVideo.addEventListener("ended", () => {{
-      if (introVideo.duration) {{
-        try {{
-          introVideo.currentTime = Math.max(0, introVideo.duration - 0.04);
-        }} catch(e) {{}}
+    if (!heroSection.contains(heroWrapper)) {{
+      heroSection.insertBefore(heroWrapper, heroSection.firstChild);
+      if (sessionStorage.getItem("forge_entered") === "true") {{
+        if (introVideo.paused && introVideo.currentTime < 0.1) {{
+          introVideo.play().catch(() => {{}});
+        }}
       }}
-      introVideo.pause();
-    }});
-
-    const s1 = document.createElement("source");
-    s1.src = "{BASE_PATH}/assets/videos/hero_desktop.mp4";
-    s1.type = "video/mp4";
-    s1.media = "(min-width: 768px)";
-    const s2 = document.createElement("source");
-    s2.src = "{BASE_PATH}/assets/videos/hero_mobile.mp4";
-    s2.type = "video/mp4";
-    introVideo.appendChild(s1);
-    introVideo.appendChild(s2);
-
-    // 2. Flythrough Scrub Video (Video 2 - All-Intra 100% Keyframe matching exact resolution 2560x1440)
-    const scrollVideo = document.createElement("video");
-    scrollVideo.className = "hero-blend-scroll";
-    scrollVideo.autoplay = false;
-    scrollVideo.loop = false;
-    scrollVideo.muted = true;
-    scrollVideo.playsInline = true;
-    scrollVideo.preload = "auto";
-    scrollVideo.poster = "{BASE_PATH}/assets/videos/hero_settled_frame.jpg";
-    scrollVideo.style.cssText = "position:absolute; inset:0; width:100%; height:100%; object-fit:cover; z-index:2; pointer-events:none; opacity:0; will-change:opacity; transition:opacity 0.2s cubic-bezier(0.16, 1, 0.3, 1);";
-
-    const sc1 = document.createElement("source");
-    sc1.src = "{BASE_PATH}/assets/videos/scroll_desktop_exact_intra.mp4";
-    sc1.type = "video/mp4";
-    sc1.media = "(min-width: 768px)";
-    const sc2 = document.createElement("source");
-    sc2.src = "{BASE_PATH}/assets/videos/scroll_mobile_exact_intra.mp4";
-    sc2.type = "video/mp4";
-    scrollVideo.appendChild(sc1);
-    scrollVideo.appendChild(sc2);
-
-    container.insertBefore(scrollVideo, container.firstChild);
-    container.insertBefore(introVideo, container.firstChild);
-
-    introVideo.play().catch(() => {{}});
-    // Prime scrollVideo buffer for instant decoding
-    scrollVideo.load();
-    const primePromise = scrollVideo.play();
-    if (primePromise !== undefined) {{
-      primePromise.then(() => {{
-        scrollVideo.pause();
-        scrollVideo.currentTime = 0;
-      }}).catch(() => {{}});
     }}
+  }}
 
-    // 3. Robust multi-source scroll reader (div.lenis + window + doc)
-    function getScrollY() {{
-      const lenisDiv = document.querySelector("div.lenis");
-      const lenisScroll = lenisDiv ? lenisDiv.scrollTop : 0;
-      const winScroll = window.scrollY || document.documentElement.scrollTop || (document.scrollingElement ? document.scrollingElement.scrollTop : 0) || 0;
-      return Math.max(lenisScroll, winScroll);
-    }}
+  // 3. Robust multi-source scroll reader (div.lenis + window + doc)
+  function getScrollY() {{
+    const lenisDiv = document.querySelector("div.lenis");
+    const lenisScroll = lenisDiv ? lenisDiv.scrollTop : 0;
+    const winScroll = window.scrollY || document.documentElement.scrollTop || (document.scrollingElement ? document.scrollingElement.scrollTop : 0) || 0;
+    return Math.max(lenisScroll, winScroll);
+  }}
 
-    // 4. 3D Perspective Parallax Tilt on Hero Intro (matching original site, RAF-throttled)
-    let tiltRAF = null;
-    let lastTiltX = 0;
-    let lastTiltY = 0;
-    window.addEventListener("pointermove", (e) => {{
-      const scrollY = getScrollY();
-      if (scrollY > 180) return;
-      lastTiltX = (e.clientX / window.innerWidth - 0.5) * 2;
-      lastTiltY = (e.clientY / window.innerHeight - 0.5) * 2;
-      if (!tiltRAF) {{
-        tiltRAF = requestAnimationFrame(() => {{
+  // 4. 3D Perspective Parallax Tilt on Hero Intro (matching original site, RAF-throttled)
+  let tiltRAF = null;
+  let lastTiltX = 0;
+  let lastTiltY = 0;
+  window.addEventListener("pointermove", (e) => {{
+    const scrollY = getScrollY();
+    if (scrollY > 180 || !introVideo) return;
+    lastTiltX = (e.clientX / window.innerWidth - 0.5) * 2;
+    lastTiltY = (e.clientY / window.innerHeight - 0.5) * 2;
+    if (!tiltRAF) {{
+      tiltRAF = requestAnimationFrame(() => {{
+        if (introVideo) {{
           introVideo.style.transform = `perspective(1200px) rotateY(${{lastTiltX * -2.5}}deg) rotateX(${{lastTiltY * 2.5}}deg) scale(1.02)`;
-          tiltRAF = null;
-        }});
-      }}
-    }}, {{ passive: true }});
+        }}
+        tiltRAF = null;
+      }});
+    }}
+  }}, {{ passive: true }});
 
-    // 5. Ultra-Smooth Lerped Video Blend & Scrub Controller (Source-Site Architecture)
-    let targetProgress = 0;
-    let currentProgress = 0;
-    let isSeeking = false;
+  // 5. Ultra-Smooth Lerped Video Blend & Scrub Controller (Source-Site Architecture)
+  let targetProgress = 0;
+  let currentProgress = 0;
+  let isSeeking = false;
+  let nextSeekTarget = -1;
 
-    function updateTargetProgress() {{
-      const scrollY = getScrollY();
-      const heroSpacer = document.querySelector(".sc-2b3d2147-3") || document.querySelector(".fHUmBT");
-      const spacerHeight = heroSpacer ? heroSpacer.offsetHeight : (window.innerHeight * 1.4);
-      targetProgress = Math.min(1, Math.max(0, scrollY / spacerHeight));
+  function updateTargetProgress() {{
+    const scrollY = getScrollY();
+    const heroSpacer = document.querySelector(".sc-2b3d2147-3") || document.querySelector(".fHUmBT");
+    const spacerHeight = heroSpacer ? heroSpacer.offsetHeight : (window.innerHeight * 1.4);
+    targetProgress = Math.min(1, Math.max(0, scrollY / spacerHeight));
+  }}
+
+  window.addEventListener("scroll", updateTargetProgress, {{ passive: true }});
+  document.addEventListener("scroll", updateTargetProgress, {{ passive: true, capture: true }});
+  const lenisContainer = document.querySelector("div.lenis");
+  if (lenisContainer) {{
+    lenisContainer.addEventListener("scroll", updateTargetProgress, {{ passive: true }});
+  }}
+
+  function triggerSeek(time) {{
+    if (!scrollVideo || !scrollVideo.duration) return;
+    isSeeking = true;
+    if (typeof scrollVideo.fastSeek === 'function') {{
+      scrollVideo.fastSeek(time);
+    }} else {{
+      scrollVideo.currentTime = time;
+    }}
+  }}
+
+  function renderScrubLoop() {{
+    updateTargetProgress();
+
+    // Silky smooth lerp matching Lenis momentum
+    const diff = targetProgress - currentProgress;
+    if (Math.abs(diff) > 0.001) {{
+      currentProgress += diff * 0.32;
+    }} else {{
+      currentProgress = targetProgress;
+    }}
+    if (targetProgress === 0 && currentProgress < 0.05) {{
+      currentProgress = 0;
+    }}
+    if (targetProgress === 1 && currentProgress > 0.95) {{
+      currentProgress = 1;
     }}
 
-    window.addEventListener("scroll", updateTargetProgress, {{ passive: true }});
-    document.addEventListener("scroll", updateTargetProgress, {{ passive: true, capture: true }});
-    const lenisContainer = document.querySelector("div.lenis");
-    if (lenisContainer) {{
-      lenisContainer.addEventListener("scroll", updateTargetProgress, {{ passive: true }});
-    }}
-
-    scrollVideo.addEventListener("seeked", () => {{
-      isSeeking = false;
-    }});
-
-    function renderScrubLoop() {{
-      // Always sample current scroll position on each RAF to capture Lenis momentum
-      updateTargetProgress();
-
-      // Silky smooth lerp matching Lenis momentum
-      const diff = targetProgress - currentProgress;
-      if (Math.abs(diff) > 0.001) {{
-        currentProgress += diff * 0.28;
-      }} else {{
-        currentProgress = targetProgress;
-      }}
-      if (targetProgress === 0 && currentProgress < 0.08) {{
-        currentProgress = 0;
-      }}
-      if (targetProgress === 1 && currentProgress > 0.92) {{
-        currentProgress = 1;
-      }}
-
-      // Crossfade Blend: Progress 0.00 -> 0.20
-      const blendThreshold = 0.20;
+    if (introVideo && scrollVideo) {{
+      // Crossfade Blend: Progress 0.00 -> 0.18
+      const blendThreshold = 0.18;
       if (currentProgress <= 0.005) {{
         scrollVideo.style.opacity = "0";
         introVideo.style.opacity = "1";
-        if (introVideo.paused && introVideo.currentTime < ((introVideo.duration || 4.1) - 0.1)) {{
+        if (introVideo.paused && introVideo.currentTime < ((introVideo.duration || 4.1) - 0.1) && sessionStorage.getItem("forge_entered") === "true") {{
           introVideo.play().catch(() => {{}});
         }}
       }} else if (currentProgress < blendThreshold) {{
-        const ratio = (currentProgress - 0.008) / (blendThreshold - 0.008);
+        const ratio = (currentProgress - 0.005) / (blendThreshold - 0.005);
         scrollVideo.style.opacity = ratio.toFixed(4);
         introVideo.style.opacity = (1 - ratio).toFixed(4);
         if (introVideo.paused && introVideo.currentTime < ((introVideo.duration || 4.1) - 0.1)) {{
@@ -246,29 +256,38 @@ HERO_BLEND_ENGINE = f"""
       }}
 
       // Non-blocking seek on all-intra video stream
-      if (scrollVideo.duration && !scrollVideo.seeking && !isSeeking) {{
-        const targetTime = Math.min(scrollVideo.duration - 0.04, currentProgress * scrollVideo.duration);
-        if (Math.abs(scrollVideo.currentTime - targetTime) > 0.015) {{
-          isSeeking = true;
-          if (typeof scrollVideo.fastSeek === 'function') {{
-            scrollVideo.fastSeek(targetTime);
+      if (scrollVideo.duration) {{
+        const targetTime = Math.min(scrollVideo.duration - 0.04, Math.max(0, currentProgress * scrollVideo.duration));
+        if (Math.abs(scrollVideo.currentTime - targetTime) > 0.025) {{
+          if (!isSeeking && !scrollVideo.seeking) {{
+            triggerSeek(targetTime);
           }} else {{
-            scrollVideo.currentTime = targetTime;
+            nextSeekTarget = targetTime;
           }}
         }}
       }}
-
-      requestAnimationFrame(renderScrubLoop);
     }}
 
     requestAnimationFrame(renderScrubLoop);
-    updateTargetProgress();
   }}
 
-  let heroObserver = null;
   ensureHeroMedia();
-  if (!heroMediaAttached && typeof MutationObserver !== 'undefined') {{
-    heroObserver = new MutationObserver(() => {{
+  if (scrollVideo) {{
+    scrollVideo.addEventListener("seeked", () => {{
+      isSeeking = false;
+      if (nextSeekTarget >= 0) {{
+        const t = nextSeekTarget;
+        nextSeekTarget = -1;
+        triggerSeek(t);
+      }}
+    }});
+  }}
+
+  requestAnimationFrame(renderScrubLoop);
+  updateTargetProgress();
+
+  if (typeof MutationObserver !== 'undefined') {{
+    const heroObserver = new MutationObserver(() => {{
       ensureHeroMedia();
     }});
     heroObserver.observe(document.body || document.documentElement, {{ childList: true, subtree: true }});
@@ -294,6 +313,15 @@ HERO_BLEND_ENGINE = f"""
       document.documentElement.classList.add("site-entered");
       document.body.classList.add("site-entered");
       document.documentElement.classList.remove("lenis-stopped");
+      document.documentElement.style.setProperty("overflow", "auto", "important");
+      document.documentElement.style.setProperty("height", "auto", "important");
+      document.body.style.setProperty("overflow", "auto", "important");
+      document.body.style.setProperty("height", "auto", "important");
+      const pageEl = document.getElementById("page");
+      if (pageEl) {{
+        pageEl.style.setProperty("overflow", "visible", "important");
+        pageEl.style.setProperty("height", "auto", "important");
+      }}
 
       // Reveal hero text and header with authentic styles
       const h1 = document.querySelector('h1') || document.querySelector('.dpFkxc');
@@ -319,9 +347,10 @@ HERO_BLEND_ENGINE = f"""
         el.style.overflowY = "auto";
       }});
 
-      // Start intro video
+      // Start intro video cleanly from frame 0
       const introVid = document.querySelector(".hero-blend-intro");
-      if (introVid && introVid.paused) {{
+      if (introVid) {{
+        try {{ introVid.currentTime = 0; }} catch(e) {{}}
         introVid.play().catch(() => {{}});
       }}
 
@@ -364,6 +393,16 @@ HERO_BLEND_ENGINE = f"""
 
         document.documentElement.classList.add("site-entered");
         document.body.classList.add("site-entered");
+        document.documentElement.classList.remove("lenis-stopped");
+        document.documentElement.style.setProperty("overflow", "auto", "important");
+        document.documentElement.style.setProperty("height", "auto", "important");
+        document.body.style.setProperty("overflow", "auto", "important");
+        document.body.style.setProperty("height", "auto", "important");
+        const pageEl = document.getElementById("page");
+        if (pageEl) {{
+          pageEl.style.setProperty("overflow", "visible", "important");
+          pageEl.style.setProperty("height", "auto", "important");
+        }}
 
         const h1 = document.querySelector('h1') || document.querySelector('.dpFkxc');
         if (h1) {{
@@ -387,17 +426,28 @@ HERO_BLEND_ENGINE = f"""
           video.play().catch(() => {{}});
         }}
       }} else {{
-        // Guarantee: ensure enter button is visible and active after 3.2s
+        // Guarantee: ensure enter button is visible and active after 2.2s
         setTimeout(() => {{
           if (!isExiting && sessionStorage.getItem("forge_entered") !== "true") {{
-            const btn = document.querySelector('[aria-label="Enter Website"], button.sc-60e682e4-7, .preloader-enter-btn');
+            let btn = document.querySelector('[aria-label="Enter Website"], button.sc-60e682e4-7, .preloader-enter-btn');
+            if (!btn) {{
+              const bottomContainer = document.querySelector('.sc-60e682e4-2') || document.querySelector('.eLZiTc');
+              if (bottomContainer) {{
+                const wrapper = document.createElement('div');
+                wrapper.className = 'sc-60e682e4-3 preloader-bottom-fallback';
+                wrapper.innerHTML = '<button type="button" aria-label="Enter Website" class="sc-60e682e4-7 preloader-enter-btn" style="opacity: 1 !important; visibility: visible !important; pointer-events: auto !important; cursor: pointer;"><span><span>E</span><span>n</span><span>t</span><span>e</span><span>r</span></span></button><span class="sc-60e682e4-6" style="margin-top: 0.8rem; font-size: 0.85rem; color: rgba(255,255,255,0.6); text-align: center;">By pressing “Enter” on this website, you accept the use of cookies for analytics</span>';
+                bottomContainer.innerHTML = '';
+                bottomContainer.appendChild(wrapper);
+                btn = wrapper.querySelector('button');
+              }}
+            }}
             if (btn) {{
               btn.style.setProperty('opacity', '1', 'important');
               btn.style.setProperty('visibility', 'visible', 'important');
               btn.style.setProperty('pointer-events', 'auto', 'important');
             }}
           }}
-        }}, 3200);
+        }}, 2200);
       }}
     }}
 
@@ -412,6 +462,17 @@ HERO_BLEND_ENGINE = f"""
 .hero-bg-media,
 .sc-2b039258-5 canvas {{
   display: none !important;
+}}
+html.site-entered,
+body.site-entered {{
+  height: auto !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+}}
+html.site-entered #page,
+body.site-entered #page {{
+  height: auto !important;
+  overflow: visible !important;
 }}
 html.site-entered [role="dialog"],
 body.site-entered [role="dialog"],
@@ -682,9 +743,20 @@ if os.path.exists(preloader_chunk_path):
         p_code = f.read()
     p_code = p_code.replace("w=void 0!==h&&h", "w=!0")
     p_code = p_code.replace("Y=(F?K&&(!M||R):J)&&B", "Y=B||!0")
+    p_code = p_code.replace('C[7]===Symbol.for("react.memo_cache_sentinel")?(w=()=>U(!0),C[7]=w):w=C[7];let Z=w;', 'C[7]===Symbol.for("react.memo_cache_sentinel")?(w=(typeof window!=="undefined"&&setTimeout(()=>U(!0),2200),()=>U(!0)),C[7]=w):w=C[7];let Z=w;')
     with open(preloader_chunk_path, 'w', encoding='utf-8') as f:
         f.write(p_code)
     print("Patched preloader chunk: guaranteed completion")
+
+# Hero background chunk update: prevent unmounting on codec errors
+hero_chunk_path = os.path.join(DEST_DIR, '_next/static/chunks/43lg5uv8_am8v.js')
+if os.path.exists(hero_chunk_path):
+    with open(hero_chunk_path, 'r', encoding='utf-8') as f:
+        h_code = f.read()
+    h_code = h_code.replace(',"unsupported"===ed||"error"===ed)?null:', ',!1)?null:')
+    with open(hero_chunk_path, 'w', encoding='utf-8') as f:
+        f.write(h_code)
+    print("Patched hero chunk: persistent background container")
 
 # Ensure .nojekyll exists
 with open(os.path.join(DEST_DIR, '.nojekyll'), 'w') as f:
