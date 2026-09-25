@@ -267,60 +267,64 @@ HERO_BLEND_ENGINE = f"""
 
   // Interactive Preloader Controller
   (function() {{
-    const s0 = document.getElementById("S:0");
-    if (s0) s0.removeAttribute("hidden");
-
     let isExiting = false;
     function onEnter() {{
       if (isExiting) return;
       isExiting = true;
       sessionStorage.setItem("forge_entered", "true");
 
-      const curDialog = document.querySelector('[role="dialog"]');
-      if (curDialog) {{
-        const wordsEl = curDialog.querySelector("[data-cinematic-words]");
-        if (wordsEl) {{
-          const spans = wordsEl.querySelectorAll(".cinematic-word");
-          spans.forEach(s => {{
-            s.style.transition = "all 0.5s cubic-bezier(0.16,1,0.3,1)";
-            s.style.opacity = "0";
-            s.style.filter = "blur(0.8rem)";
-            s.style.transform = "translateY(-12px)";
-          }});
-        }}
-        const enterContainer = curDialog.querySelector(".preloader-enter-container");
-        if (enterContainer) {{
-          enterContainer.style.transition = "all 0.4s cubic-bezier(0.16,1,0.3,1)";
-          enterContainer.style.opacity = "0";
-          enterContainer.style.transform = "translateY(16px)";
-        }}
+      // Fade out all preloader dialogs smoothly
+      const allDialogs = document.querySelectorAll('[role="dialog"]');
+      allDialogs.forEach(dialog => {{
+        dialog.style.transition = "opacity 0.6s cubic-bezier(0.16,1,0.3,1)";
+        dialog.style.opacity = "0";
+        dialog.style.pointerEvents = "none";
+      }});
 
-        curDialog.style.transition = "opacity 0.8s cubic-bezier(0.16,1,0.3,1)";
-        curDialog.style.opacity = "0";
-        curDialog.style.pointerEvents = "none";
-      }}
-
+      // Activate entered state on document
       document.documentElement.classList.add("site-entered");
       document.body.classList.add("site-entered");
       document.documentElement.classList.remove("lenis-stopped");
+
+      // Reveal hero text and header with authentic styles
+      const h1 = document.querySelector('h1') || document.querySelector('.dpFkxc');
+      if (h1) {{
+        h1.style.setProperty('visibility', 'visible', 'important');
+        h1.style.setProperty('opacity', '1', 'important');
+      }}
+      const desc = document.querySelector('p[data-sanity*="heroDescription"]') || document.querySelector('.hflLLX');
+      if (desc) {{
+        desc.style.setProperty('visibility', 'visible', 'important');
+        desc.style.setProperty('opacity', '1', 'important');
+      }}
+      const header = document.querySelector('header');
+      if (header) {{
+        header.style.setProperty('visibility', 'visible', 'important');
+        header.style.setProperty('opacity', '1', 'important');
+        header.style.setProperty('display', 'flex', 'important');
+      }}
+
+      // Unlock lenis
       document.querySelectorAll(".lenis").forEach(el => {{
         el.classList.remove("lenis-stopped");
         el.style.overflowY = "auto";
       }});
 
+      // Start intro video
       const introVid = document.querySelector(".hero-blend-intro");
       if (introVid && introVid.paused) {{
         introVid.play().catch(() => {{}});
       }}
 
+      // Hide preloader elements after fadeout completes (CSS only, do not remove DOM nodes)
       setTimeout(() => {{
-        if (curDialog) {{
-          curDialog.style.display = "none";
-          if (curDialog.parentNode && window.__origRemoveChild) {{
-            window.__origRemoveChild.call(curDialog.parentNode, curDialog);
-          }}
-        }}
-      }}, 850);
+        document.querySelectorAll('[role="dialog"]').forEach(d => {{
+          d.style.setProperty('display', 'none', 'important');
+          d.style.setProperty('opacity', '0', 'important');
+          d.style.setProperty('visibility', 'hidden', 'important');
+          d.style.setProperty('pointer-events', 'none', 'important');
+        }});
+      }}, 650);
     }}
 
     // Global capture-phase listeners always active
@@ -337,15 +341,43 @@ HERO_BLEND_ENGINE = f"""
       }}
     }}, true);
 
+    // Wheel and touch scroll momentum forwarding to .lenis container
+    window.addEventListener('wheel', (e) => {{
+      const scroller = document.querySelector('.lenis');
+      if (scroller) {{
+        scroller.scrollTop += e.deltaY;
+      }}
+    }}, {{ passive: true }});
+
+    let touchStartY = 0;
+    window.addEventListener('touchstart', (e) => {{
+      if (e.touches && e.touches[0]) {{
+        touchStartY = e.touches[0].clientY;
+      }}
+    }}, {{ passive: true }});
+    window.addEventListener('touchmove', (e) => {{
+      if (e.touches && e.touches[0]) {{
+        const delta = touchStartY - e.touches[0].clientY;
+        touchStartY = e.touches[0].clientY;
+        const scroller = document.querySelector('.lenis');
+        if (scroller) {{
+          scroller.scrollTop += delta;
+        }}
+      }}
+    }}, {{ passive: true }});
+
     // Initial preloader setup
     function setupPreloader() {{
-      const dialog = document.querySelector('[role="dialog"]');
-      if (!dialog) return;
-
       const forceShow = window.location.search.includes("preloader=1");
       const alreadyEntered = !forceShow && sessionStorage.getItem("forge_entered") === "true";
       if (alreadyEntered) {{
-        dialog.style.display = "none";
+        document.querySelectorAll('[role="dialog"]').forEach(d => {{
+          d.style.setProperty('display', 'none', 'important');
+          d.style.setProperty('opacity', '0', 'important');
+          d.style.setProperty('visibility', 'hidden', 'important');
+          d.style.setProperty('pointer-events', 'none', 'important');
+        }});
+
         document.documentElement.classList.add("site-entered");
         document.body.classList.add("site-entered");
         document.documentElement.classList.remove("lenis-stopped");
@@ -353,63 +385,29 @@ HERO_BLEND_ENGINE = f"""
           el.classList.remove("lenis-stopped");
           el.style.overflowY = "auto";
         }});
+
+        const h1 = document.querySelector('h1') || document.querySelector('.dpFkxc');
+        if (h1) {{
+          h1.style.setProperty('visibility', 'visible', 'important');
+          h1.style.setProperty('opacity', '1', 'important');
+        }}
+        const desc = document.querySelector('p[data-sanity*="heroDescription"]') || document.querySelector('.hflLLX');
+        if (desc) {{
+          desc.style.setProperty('visibility', 'visible', 'important');
+          desc.style.setProperty('opacity', '1', 'important');
+        }}
+        const header = document.querySelector('header');
+        if (header) {{
+          header.style.setProperty('visibility', 'visible', 'important');
+          header.style.setProperty('opacity', '1', 'important');
+          header.style.setProperty('display', 'flex', 'important');
+        }}
+
         const video = document.querySelector(".hero-blend-intro");
         if (video && video.paused && video.currentTime < ((video.duration || 4.1) - 0.1)) {{
           video.play().catch(() => {{}});
         }}
-        return;
       }}
-
-      dialog.style.display = "grid";
-      dialog.style.opacity = "1";
-
-      const wordsEl = dialog.querySelector("[data-cinematic-words]");
-      const progressBox = dialog.querySelector(".sc-60e682e4-4");
-      const progressBar = dialog.querySelector(".cGDbxd");
-      const enterContainer = dialog.querySelector(".preloader-enter-container");
-
-      if (wordsEl && !wordsEl.dataset.split) {{
-        wordsEl.dataset.split = "true";
-        const txt = wordsEl.textContent.trim();
-        const words = txt.split(/\\s+/);
-        wordsEl.innerHTML = words.map(w => `<span class="cinematic-word" style="display:inline-block; margin-right:0.35em; opacity:0; filter:blur(0.8rem); transform:translateY(12px); will-change:opacity,filter,transform; transition:opacity 0.65s cubic-bezier(0.16,1,0.3,1), filter 0.65s cubic-bezier(0.16,1,0.3,1), transform 0.65s cubic-bezier(0.16,1,0.3,1);">${{w}}</span>`).join("");
-        wordsEl.style.visibility = "visible";
-        wordsEl.style.opacity = "1";
-
-        const spans = wordsEl.querySelectorAll(".cinematic-word");
-        spans.forEach((span, idx) => {{
-          setTimeout(() => {{
-            span.style.opacity = "1";
-            span.style.filter = "blur(0)";
-            span.style.transform = "translateY(0)";
-          }}, 200 + idx * 110);
-        }});
-      }}
-
-      if (progressBar) {{
-        progressBar.style.transition = "transform 2.2s cubic-bezier(0.25, 1, 0.5, 1)";
-        setTimeout(() => {{
-          progressBar.style.transform = "scaleX(1)";
-        }}, 300);
-      }}
-
-      setTimeout(() => {{
-        if (progressBox) {{
-          progressBox.style.transition = "opacity 0.35s ease";
-          progressBox.style.opacity = "0";
-          setTimeout(() => {{ progressBox.style.display = "none"; }}, 350);
-        }}
-        if (enterContainer) {{
-          enterContainer.style.display = "flex";
-          enterContainer.style.opacity = "0";
-          enterContainer.style.transform = "translateY(16px)";
-          enterContainer.style.transition = "opacity 0.6s cubic-bezier(0.16,1,0.3,1), transform 0.6s cubic-bezier(0.16,1,0.3,1)";
-          requestAnimationFrame(() => {{
-            enterContainer.style.opacity = "1";
-            enterContainer.style.transform = "translateY(0)";
-          }});
-        }}
-      }}, 2300);
     }}
 
     setupPreloader();
@@ -480,12 +478,63 @@ HERO_BLEND_ENGINE = f"""
   transform: scaleX(1);
   opacity: 1;
 }}
+html.site-entered [role="dialog"],
+body.site-entered [role="dialog"],
+.site-entered [role="dialog"],
+#S\:0.dismissed,
+div[id="S:0"].dismissed {{
+  display: none !important;
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}}
+html.site-entered .sc-12ea9db1-3,
+html.site-entered .dpFkxc,
+body.site-entered .sc-12ea9db1-3,
+body.site-entered .dpFkxc,
+html.site-entered h1[data-sanity*="heroHeading"],
+body.site-entered h1[data-sanity*="heroHeading"],
+html.site-entered h1 {{
+  visibility: visible !important;
+  opacity: 1 !important;
+  color: #ffffff !important;
+  transition: opacity 0.8s ease 0.1s;
+}}
+html.site-entered .sc-12ea9db1-4,
+html.site-entered .hflLLX,
+body.site-entered .sc-12ea9db1-4,
+body.site-entered .hflLLX,
+html.site-entered p[data-sanity*="heroDescription"],
+body.site-entered p[data-sanity*="heroDescription"] {{
+  visibility: visible !important;
+  opacity: 1 !important;
+  color: #ffffff !important;
+  transition: opacity 0.8s ease 0.3s;
+}}
+html.site-entered header,
+body.site-entered header,
+html.site-entered .sc-cf9722b1-0 {{
+  visibility: visible !important;
+  opacity: 1 !important;
+  pointer-events: auto !important;
+  transition: opacity 0.6s ease;
+}}
 html .lenis.lenis-stopped:not(.lenis-autoToggle) {{
   overflow: auto !important;
 }}
 .lenis {{
   overflow-y: auto !important;
   -webkit-overflow-scrolling: touch;
+}}
+html.site-entered .lenis,
+body.site-entered .lenis,
+.site-entered .lenis {{
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch;
+}}
+html.site-entered .lenis.lenis-stopped,
+body.site-entered .lenis.lenis-stopped {{
+  overflow-y: auto !important;
 }}
 </style>
 """
@@ -497,16 +546,6 @@ RUNTIME_HEAD_INJECTION = f"""
   const isGh = window.location.hostname.includes('github.io') || window.location.pathname.startsWith('{BASE_PATH}');
   window.__BASE_PATH__ = isGh ? '{BASE_PATH}' : '';
   window.TURBOPACK_CHUNK_BASE_PATH = (isGh ? '{BASE_PATH}' : '') + '/_next/';
-
-  // Protect preloader root from unmounting by React DOM during client hydration
-  const origRemoveChild = Node.prototype.removeChild;
-  Node.prototype.removeChild = function(child) {{
-    if (child && (child.id === 'forge-preloader-root' || (child.getAttribute && child.getAttribute('role') === 'dialog'))) {{
-      return child;
-    }}
-    return origRemoveChild.apply(this, arguments);
-  }};
-  window.__origRemoveChild = origRemoveChild;
 }})();
 </script>
 <script id="runtime-image-guard">
@@ -645,12 +684,8 @@ def process_page(slug):
     if '<head>' in html:
         html = html.replace('<head>', f'<head>\n{RUNTIME_HEAD_INJECTION}')
 
-    # If home page, unhide preloader, inject Enter markup and 2-video scroll blend engine
+    # If home page, inject 2-video scroll blend engine
     if slug == '':
-        html = html.replace('<div hidden id="S:0">', '<div id="S:0">')
-        html = html.replace('<div hidden="" id="S:0">', '<div id="S:0">')
-        enter_markup = """<div class="sc-60e682e4-3 eAUikG preloader-enter-container" style="display:none; flex-direction:column; align-items:center; text-align:center; opacity:0; transform:translateY(12px); will-change:opacity,transform; margin-top:1.5rem;"><button type="button" aria-label="Enter Website" class="sc-60e682e4-7 Wejkv preloader-enter-btn"><span class="enter-text-wrap"><span>E</span><span>n</span><span>t</span><span>e</span><span>r</span></span></button><span class="sc-60e682e4-6 eIFaFQ preloader-cookie-notice" style="margin-top:0.75rem; font-size:0.75rem; letter-spacing:0.06rem; color:rgba(242,241,237,0.5); text-transform:uppercase; font-family:var(--font-body,sans-serif); max-width:380px; line-height:1.4;">By pressing “Enter” on this website, you accept the use of cookies for analytics</span></div>"""
-        html = re.sub(r'(<div class="sc-60e682e4-5 cGDbxd"></div></div>)', rf'\1{enter_markup}', html)
         html = re.sub(r'<img([^>]+alt="Three custom Forge vehicles[^>]+)src="data:image/gif;base64,[^"]+"([^>]*)>',
                       rf'<img\1src="{BASE_PATH}/assets/cars/9ae611ac36488077eadfc0d1f8a5aa163aae1c8e-880x1592.jpg"\2>', html)
         html = html.replace('</body>', f'{HERO_BLEND_ENGINE}\n</body>')

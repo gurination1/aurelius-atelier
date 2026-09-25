@@ -5,16 +5,6 @@
   const isGh = window.location.hostname.includes('github.io') || window.location.pathname.startsWith('/aurelius-atelier');
   window.__BASE_PATH__ = isGh ? '/aurelius-atelier' : '';
   window.TURBOPACK_CHUNK_BASE_PATH = (isGh ? '/aurelius-atelier' : '') + '/_next/';
-
-  // Protect preloader root from unmounting by React DOM during client hydration
-  const origRemoveChild = Node.prototype.removeChild;
-  Node.prototype.removeChild = function(child) {
-    if (child && (child.id === 'forge-preloader-root' || (child.getAttribute && child.getAttribute('role') === 'dialog'))) {
-      return child;
-    }
-    return origRemoveChild.apply(this, arguments);
-  };
-  window.__origRemoveChild = origRemoveChild;
 })();
 </script>
 <script id="runtime-image-guard">
