@@ -1,0 +1,408 @@
+import os
+import re
+import json
+import shutil
+
+SRC_DIR = '/root/forge-site-live'
+DEST_DIR = '/root/forge-source'
+BASE_PATH = '/aurelius-atelier'
+
+PAGES = [
+    '',
+    'builds',
+    'builds/fa001',
+    'builds/fa002',
+    'builds/fa005',
+    'builds/fa006',
+    'builds/fa007',
+    'builds/fa008',
+    'builds/fa009',
+    'stock',
+    'stock/fa003',
+    'contact',
+    'cookies',
+    'privacy',
+    'terms',
+]
+
+# Load vanguard_image_map.json
+with open(os.path.join(DEST_DIR, 'assets/vanguard_image_map.json'), 'r', encoding='utf-8') as f:
+    raw_map = json.load(f)
+
+# Filter out OEM SVGs so they are NEVER mapped to supercar images
+IMAGE_MAP = {k: v for k, v in raw_map.items() if not k.endswith('.svg')}
+
+OEM_SVGS = {
+    '0376b1a1dd08bc79a767f1f5f46befe617f2882c-120x28.svg',
+    '1056d91ce910f0816d6467e96bf2d2a28befa4ba-49x60.svg',
+    '2c9cafc8b15ad6961ff9d5c0a57a0dc2c97c2fa2-120x42.svg',
+    '2cb28ac57667b0d9bbac8d68c0a630859ce889b2-120x10.svg',
+    '57eab24a91878f828a2a6e7461c84a603eb8240b-52x60.svg',
+    '5e7b943bfe0a0908a7035693ae1a9ed209b914b8-120x8.svg',
+    '647bea4b10ef8f9bcea149298271657e9c72a670-115x60.svg',
+    '69fee80a9c1bc7ec5d4b22c662319db174326f16-60x60.svg',
+    '6e49cc1f76bd2d6a2049408d12f00a58b2c6f889-60x60.svg',
+    '8493e4780bacc8d8f9a4601cdb755bacf46b0ab7-120x27.svg',
+    '9e728876539cbcc9f82941b505b4522fd1db5e6b-120x8.svg',
+    'e271601746e95bcd1b5b1ebfce37d51ce581b8ad-120x38.svg',
+    'e7cfeea594b2ac1cf927270961ace6ce8ebffb0e-120x60.svg',
+    'e8ce4b533a95fd19ebe5fa323495d1c2d3170074-120x18.svg'
+}
+
+def map_sanity_file(fname):
+    if fname.endswith('.svg') or fname in OEM_SVGS:
+        return None # Preserve OEM partner logo
+    if fname in IMAGE_MAP:
+        return IMAGE_MAP[fname]
+    h = fname[:40]
+    if h in IMAGE_MAP:
+        return IMAGE_MAP[h]
+    if '4d877ce34' in fname:
+        return '4d877ce34bbd3354636fb32f4d5f944e2487c8b4-512x512.png'
+    if 'd7577b4b' in fname:
+        return 'd7577b4b9f6a6acda5594e9e6171678dba58e133-1200x630.jpg'
+    return None
+
+sanity_pattern = re.compile(r'https?://cdn\.sanity\.io/images/[^/]+/production/([a-zA-Z0-9_\-\.]+)(?:\\u[0-9a-fA-F]{4}|[^\s"\'<>\\])*')
+
+def sanity_replacer(match):
+    fname = match.group(1)
+    mapped = map_sanity_file(fname)
+    if mapped is None:
+        return match.group(0) # Keep OEM partner logo untouched
+    return f"{BASE_PATH}/assets/cars/{mapped}"
+
+# Exact 2-Video Scroll Blend Engine from commit ce76018
+HERO_BLEND_ENGINE = f"""
+<!-- Smooth 2-Video Scroll Blend Engine (from commit ce76018) -->
+<script id="hero-blend-engine">
+(function() {{
+  function ensureHeroMedia() {{
+    const container = document.querySelector(".sc-2b039258-5") || document.querySelector("section.sc-2b039258-0");
+    if (!container) return;
+
+    const oldContinuous = container.querySelector(".hero-continuous-media");
+    if (oldContinuous) oldContinuous.remove();
+
+    document.querySelectorAll(".hero-bg-media").forEach(el => el.remove());
+
+    if (container.querySelector(".hero-blend-intro")) return;
+
+    // 1. Lineup Hero Video (Video 1 resting & looping)
+    const introVideo = document.createElement("video");
+    introVideo.className = "hero-blend-intro";
+    introVideo.autoplay = true;
+    introVideo.loop = true;
+    introVideo.muted = true;
+    introVideo.playsInline = true;
+    introVideo.poster = "{BASE_PATH}/assets/videos/hero_poster.jpg";
+    introVideo.style.cssText = "position:absolute; inset:0; width:100%; height:100%; object-fit:cover; z-index:1; pointer-events:none; opacity:1; will-change:opacity,transform; transition:opacity 0.25s ease-out;";
+
+    const s1 = document.createElement("source");
+    s1.src = "{BASE_PATH}/assets/videos/hero_desktop.mp4";
+    s1.type = "video/mp4";
+    s1.media = "(min-width: 768px)";
+    const s2 = document.createElement("source");
+    s2.src = "{BASE_PATH}/assets/videos/hero_mobile.mp4";
+    s2.type = "video/mp4";
+    introVideo.appendChild(s1);
+    introVideo.appendChild(s2);
+
+    // 2. Flythrough Scrub Video (Video 2 - All-Intra 100% Keyframe for instant 120fps seeks)
+    const scrollVideo = document.createElement("video");
+    scrollVideo.className = "hero-blend-scroll";
+    scrollVideo.autoplay = false;
+    scrollVideo.loop = false;
+    scrollVideo.muted = true;
+    scrollVideo.playsInline = true;
+    scrollVideo.preload = "auto";
+    scrollVideo.poster = "{BASE_PATH}/assets/videos/hero_settled_frame.jpg";
+    scrollVideo.style.cssText = "position:absolute; inset:0; width:100%; height:100%; object-fit:cover; z-index:2; pointer-events:none; opacity:0; will-change:opacity; transition:opacity 0.2s cubic-bezier(0.16, 1, 0.3, 1);";
+
+    const sc1 = document.createElement("source");
+    sc1.src = "{BASE_PATH}/assets/videos/scroll_desktop_intra.mp4";
+    sc1.type = "video/mp4";
+    sc1.media = "(min-width: 768px)";
+    const sc2 = document.createElement("source");
+    sc2.src = "{BASE_PATH}/assets/videos/scroll_mobile_intra.mp4";
+    sc2.type = "video/mp4";
+    scrollVideo.appendChild(sc1);
+    scrollVideo.appendChild(sc2);
+
+    container.insertBefore(scrollVideo, container.firstChild);
+    container.insertBefore(introVideo, container.firstChild);
+
+    introVideo.play().catch(() => {{}});
+
+    // 3. 3D Perspective Parallax Tilt on Hero Intro (matching original site, RAF-throttled)
+    let tiltRAF = null;
+    let lastTiltX = 0;
+    let lastTiltY = 0;
+    window.addEventListener("pointermove", (e) => {{
+      const scrollY = window.scrollY || document.documentElement.scrollTop;
+      if (scrollY > 180) return;
+      lastTiltX = (e.clientX / window.innerWidth - 0.5) * 2;
+      lastTiltY = (e.clientY / window.innerHeight - 0.5) * 2;
+      if (!tiltRAF) {{
+        tiltRAF = requestAnimationFrame(() => {{
+          introVideo.style.transform = `perspective(1200px) rotateY(${{lastTiltX * -2.5}}deg) rotateX(${{lastTiltY * 2.5}}deg) scale(1.02)`;
+          tiltRAF = null;
+        }});
+      }}
+    }}, {{ passive: true }});
+
+    // 4. Ultra-Smooth Lerped Video Blend & Scrub Controller (Source-Site Architecture)
+    let targetProgress = 0;
+    let currentProgress = 0;
+    let isSeeking = false;
+
+    function updateTargetProgress() {{
+      const scrollY = window.scrollY || document.documentElement.scrollTop;
+      const heroSpacer = document.querySelector(".sc-2b3d2147-3") || document.querySelector(".fHUmBT");
+      const spacerHeight = heroSpacer ? heroSpacer.offsetHeight : (window.innerHeight * 1.4);
+      targetProgress = Math.min(1, Math.max(0, scrollY / spacerHeight));
+    }}
+
+    window.addEventListener("scroll", updateTargetProgress, {{ passive: true }});
+
+    scrollVideo.addEventListener("seeked", () => {{
+      isSeeking = false;
+    }});
+
+    function renderScrubLoop() {{
+      // Silky smooth lerp matching Lenis momentum
+      const diff = targetProgress - currentProgress;
+      if (Math.abs(diff) > 0.0004) {{
+        currentProgress += diff * 0.16;
+      }} else {{
+        currentProgress = targetProgress;
+      }}
+
+      // Crossfade Blend: Progress 0.00 -> 0.18
+      const blendThreshold = 0.18;
+      if (currentProgress <= 0.005) {{
+        scrollVideo.style.opacity = "0";
+        introVideo.style.opacity = "1";
+        if (introVideo.paused) introVideo.play().catch(() => {{}});
+      }} else if (currentProgress < blendThreshold) {{
+        const ratio = (currentProgress - 0.005) / (blendThreshold - 0.005);
+        scrollVideo.style.opacity = ratio.toFixed(4);
+        introVideo.style.opacity = (1 - ratio).toFixed(4);
+        if (introVideo.paused) introVideo.play().catch(() => {{}});
+      }} else {{
+        scrollVideo.style.opacity = "1";
+        introVideo.style.opacity = "0";
+        if (!introVideo.paused) introVideo.pause();
+      }}
+
+      // Non-blocking seek on all-intra video stream
+      if (scrollVideo.duration && !scrollVideo.seeking && !isSeeking) {{
+        const targetTime = Math.min(scrollVideo.duration - 0.04, currentProgress * scrollVideo.duration);
+        if (Math.abs(scrollVideo.currentTime - targetTime) > 0.02) {{
+          isSeeking = true;
+          if (typeof scrollVideo.fastSeek === 'function') {{
+            scrollVideo.fastSeek(targetTime);
+          }} else {{
+            scrollVideo.currentTime = targetTime;
+          }}
+        }}
+      }}
+
+      requestAnimationFrame(renderScrubLoop);
+    }}
+
+    requestAnimationFrame(renderScrubLoop);
+    updateTargetProgress();
+  }}
+
+  ensureHeroMedia();
+  const observer = new MutationObserver(() => {{
+    ensureHeroMedia();
+  }});
+  observer.observe(document.body || document.documentElement, {{ childList: true, subtree: true }});
+
+  // Preloader Enter Controller
+  document.addEventListener('DOMContentLoaded', () => {{
+    let entered = false;
+    function unlockScrollAndEnter() {{
+      if (entered) return;
+      entered = true;
+
+      document.documentElement.classList.add('site-entered');
+      document.body.classList.add('site-entered');
+      document.documentElement.classList.remove('lenis-stopped');
+      document.documentElement.style.overflowY = 'auto';
+      document.documentElement.style.height = 'auto';
+      document.body.style.overflowY = 'auto';
+      document.body.style.height = 'auto';
+
+      document.querySelectorAll('aside.sc-60e682e4-0, aside').forEach(aside => {{
+        aside.classList.add('dismissed', 'preloader-dismissed');
+        aside.style.transition = 'opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1)';
+        aside.style.opacity = '0';
+        aside.style.pointerEvents = 'none';
+        const enterBtn = aside.querySelector('button');
+        if (enterBtn) {{
+          try {{ enterBtn.click(); }} catch (e) {{}}
+        }}
+        setTimeout(() => {{
+          aside.style.display = 'none';
+          if (aside.parentNode) aside.remove();
+        }}, 600);
+      }});
+
+      const video = document.querySelector('.hero-blend-intro');
+      if (video && video.paused) video.play().catch(() => {{}});
+    }}
+
+    document.addEventListener('click', (e) => {{
+      const btn = e.target.closest('button');
+      if (btn && (btn.getAttribute('aria-label') === 'Enter Website' || btn.textContent.toUpperCase().includes('ENTER'))) {{
+        unlockScrollAndEnter();
+      }}
+    }}, true);
+
+    document.addEventListener('click', (e) => {{
+      const aside = document.querySelector('aside.sc-60e682e4-0');
+      if (aside && !entered && e.target.closest('aside')) {{
+        unlockScrollAndEnter();
+      }}
+    }});
+  }});
+}})();
+</script>
+<style id="hero-blend-styles">
+.hero-bg-media,
+.sc-2b039258-5 canvas {{
+  display: none !important;
+}}
+aside.sc-60e682e4-0.dismissed,
+aside.preloader-dismissed,
+html.site-entered aside.sc-60e682e4-0,
+body.site-entered aside.sc-60e682e4-0 {{
+  display: none !important;
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}}
+html, body {{
+  height: auto !important;
+  overflow-y: auto !important;
+}}
+</style>
+"""
+
+# Runtime interceptor for images and subpath compatibility
+RUNTIME_HEAD_INJECTION = f"""
+<script id="gh-pages-base">
+(function() {{
+  const isGh = window.location.hostname.includes('github.io') || window.location.pathname.startsWith('{BASE_PATH}');
+  window.__BASE_PATH__ = isGh ? '{BASE_PATH}' : '';
+  window.TURBOPACK_CHUNK_BASE_PATH = (isGh ? '{BASE_PATH}' : '') + '/_next/';
+}})();
+</script>
+<script id="runtime-image-guard">
+(function() {{
+  const imgMap = {json.dumps(IMAGE_MAP)};
+  function rewriteUrl(url) {{
+    if (!url || typeof url !== 'string') return url;
+    if (url.includes('.svg')) return url; // NEVER TOUCH OEM SVGS
+    if (url.includes('cdn.sanity.io/images/')) {{
+      const parts = url.split('?')[0].split('/');
+      const fname = parts[parts.length - 1];
+      if (imgMap[fname]) return '{BASE_PATH}/assets/cars/' + imgMap[fname];
+      const h = fname.slice(0, 40);
+      if (imgMap[h]) return '{BASE_PATH}/assets/cars/' + imgMap[h];
+      if (fname.includes('4d877ce34')) return '{BASE_PATH}/assets/cars/4d877ce34bbd3354636fb32f4d5f944e2487c8b4-512x512.png';
+      if (fname.includes('d7577b4b')) return '{BASE_PATH}/assets/cars/d7577b4b9f6a6acda5594e9e6171678dba58e133-1200x630.jpg';
+    }}
+    return url;
+  }}
+
+  const imgProto = HTMLImageElement.prototype;
+  const origSrcDesc = Object.getOwnPropertyDescriptor(imgProto, 'src') || Object.getOwnPropertyDescriptor(Element.prototype, 'src');
+  if (origSrcDesc && origSrcDesc.set) {{
+    Object.defineProperty(imgProto, 'src', {{
+      set: function(val) {{
+        return origSrcDesc.set.call(this, rewriteUrl(val));
+      }},
+      get: function() {{
+        return origSrcDesc.get.call(this);
+      }},
+      configurable: true
+    }});
+  }}
+
+  const origSetAttr = Element.prototype.setAttribute;
+  Element.prototype.setAttribute = function(name, val) {{
+    if (name === 'src' && typeof val === 'string') {{
+      val = rewriteUrl(val);
+    }}
+    return origSetAttr.call(this, name, val);
+  }};
+}})();
+</script>
+"""
+
+def process_page(slug):
+    in_file = os.path.join(SRC_DIR, slug, 'index.html') if slug else os.path.join(SRC_DIR, 'index.html')
+    out_dir = os.path.join(DEST_DIR, slug) if slug else DEST_DIR
+    out_file = os.path.join(out_dir, 'index.html')
+
+    with open(in_file, 'r', encoding='utf-8') as f:
+        html = f.read()
+
+    # 1. Replace Sanity images (preserving Section 4 OEM partner logo SVGs)
+    html, rep_count = sanity_pattern.subn(sanity_replacer, html)
+
+    # 2. Wire GitHub Pages subpath compatibility (prevent double prefix)
+    html = re.sub(r'([\"\'`])/_next/', rf'\1{BASE_PATH}/_next/', html)
+    html = re.sub(r'([\"\'`])/(favicon\.ico|icon0\.svg|icon1\.png|apple-icon\.png|manifest\.json)', rf'\1{BASE_PATH}/\2', html)
+    html = re.sub(r'([\"\'`])/web-app-manifest-', rf'\1{BASE_PATH}/web-app-manifest-', html)
+
+    # Internal links
+    html = re.sub(r'href="/(builds|stock|contact|cookies|privacy|terms)(/?)"', rf'href="{BASE_PATH}/\1\2"', html)
+    html = re.sub(r'href="/(builds|stock)/(fa\d+)(/?)"', rf'href="{BASE_PATH}/\1/\2\3"', html)
+    html = re.sub(r'href="/"', f'href="{BASE_PATH}/"', html)
+
+    # Inject runtime head scripts
+    if '<head>' in html:
+        html = html.replace('<head>', f'<head>\n{RUNTIME_HEAD_INJECTION}')
+
+    # If home page, inject 2-video scroll blend engine
+    if slug == '':
+        html = html.replace('</body>', f'{HERO_BLEND_ENGINE}\n</body>')
+
+    os.makedirs(out_dir, exist_ok=True)
+    with open(out_file, 'w', encoding='utf-8') as f:
+        f.write(html)
+
+    print(f"Processed {slug or 'home'} -> {out_file} (replaced {rep_count} sanity images)")
+
+print("Building exact site from live source...")
+for p in PAGES:
+    process_page(p)
+
+# Create 404.html from builds/index.html as GitHub Pages SPA fallback
+with open(os.path.join(DEST_DIR, 'builds/index.html'), 'r', encoding='utf-8') as f:
+    b_html = f.read()
+with open(os.path.join(DEST_DIR, '404.html'), 'w', encoding='utf-8') as f:
+    f.write(b_html)
+print("Updated 404.html")
+
+# Turbopack base path update
+turbo_path = os.path.join(DEST_DIR, '_next/static/chunks/turbopack-09j_a0p3oj5e6.js')
+if os.path.exists(turbo_path):
+    with open(turbo_path, 'r', encoding='utf-8') as f:
+        t_code = f.read()
+    t_code = t_code.replace('"string"==typeof TURBOPACK_CHUNK_BASE_PATH?TURBOPACK_CHUNK_BASE_PATH:"/_next/"',
+                            f'"string"==typeof TURBOPACK_CHUNK_BASE_PATH?TURBOPACK_CHUNK_BASE_PATH:"{BASE_PATH}/_next/"')
+    with open(turbo_path, 'w', encoding='utf-8') as f:
+        f.write(t_code)
+    print("Patched turbopack chunk base path")
+
+# Ensure .nojekyll exists
+with open(os.path.join(DEST_DIR, '.nojekyll'), 'w') as f:
+    pass
+
+print("Build complete!")

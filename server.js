@@ -33,8 +33,9 @@ const server = http.createServer((req, res) => {
   if (pathname === '/') {
     pathname = '/index.html';
   } else if (!path.extname(pathname)) {
-    // Check if HTML file exists for clean routes (e.g. /builds -> /builds.html or fallback to /index.html)
-    if (fs.existsSync(path.join(PUBLIC_DIR, pathname + '.html'))) {
+    if (fs.existsSync(path.join(PUBLIC_DIR, pathname, 'index.html'))) {
+      pathname = path.join(pathname, 'index.html');
+    } else if (fs.existsSync(path.join(PUBLIC_DIR, pathname + '.html'))) {
       pathname = pathname + '.html';
     } else {
       pathname = '/index.html';
