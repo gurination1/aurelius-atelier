@@ -524,8 +524,23 @@ RUNTIME_HEAD_INJECTION = f"""
     return origSetAttr.call(this, name, val);
   }};
 
+  function cleanCredits() {{
+    const powered = document.querySelectorAll('[data-name="powered"], a[aria-label="Navigate to WRPD"]');
+    powered.forEach(function(el) {{
+      const a = el.tagName === 'A' ? el : el.querySelector('a');
+      if (a) {{
+        a.href = 'https://github.com/gurination1';
+        a.setAttribute('aria-label', 'Made by Gurdharam');
+        a.textContent = 'Made by Gurdharam';
+      }}
+    }});
+    const siteby = document.querySelectorAll('[data-name="siteby"]');
+    siteby.forEach(function(el) {{ el.remove(); }});
+  }}
+
   if (typeof MutationObserver !== 'undefined') {{
     const mo = new MutationObserver(function(mutations) {{
+      cleanCredits();
       for (let i = 0; i < mutations.length; i++) {{
         const m = mutations[i];
         if (m.type === 'childList') {{
@@ -549,6 +564,7 @@ RUNTIME_HEAD_INJECTION = f"""
 
   document.addEventListener('DOMContentLoaded', function() {{
     document.querySelectorAll('img').forEach(cleanImg);
+    cleanCredits();
   }});
 }})();
 </script>
@@ -636,6 +652,22 @@ if os.path.exists(turbo_path):
     with open(turbo_path, 'w', encoding='utf-8') as f:
         f.write(t_code)
     print("Patched turbopack chunk base path")
+
+# Menu credits update: replace Powered by WRPD with Made by Gurdharam
+menu_chunk_path = os.path.join(DEST_DIR, '_next/static/chunks/40ga6wtcxfway.js')
+if os.path.exists(menu_chunk_path):
+    with open(menu_chunk_path, 'r', encoding='utf-8') as f:
+        m_code = f.read()
+    target_start = m_code.find('r[1]===Symbol.for("react.memo_cache_sentinel")?(a=(0,t.jsx)("p",{"data-name":"powered"')
+    if target_start != -1:
+        target_end = m_code.find(',r[2]=n):n=r[2],n', target_start)
+        if target_end != -1:
+            target_end += len(',r[2]=n):n=r[2],n')
+            new_credits = 'r[1]===Symbol.for("react.memo_cache_sentinel")?(a=(0,t.jsx)("p",{"data-name":"powered",children:(0,t.jsx)("a",{href:"https://github.com/gurination1",target:"_blank",rel:"noopener noreferrer","aria-label":"Made by Gurdharam",children:"Made by Gurdharam"})}),r[1]=a):a=r[1],r[2]===Symbol.for("react.memo_cache_sentinel")?(n=(0,t.jsxs)(y,{children:[e,a]}),r[2]=n):n=r[2],n'
+            m_code = m_code[:target_start] + new_credits + m_code[target_end:]
+            with open(menu_chunk_path, 'w', encoding='utf-8') as f:
+                f.write(m_code)
+            print("Patched menu chunk: Made by Gurdharam")
 
 # Ensure .nojekyll exists
 with open(os.path.join(DEST_DIR, '.nojekyll'), 'w') as f:

@@ -88,8 +88,23 @@
     return origSetAttr.call(this, name, val);
   };
 
+  function cleanCredits() {
+    const powered = document.querySelectorAll('[data-name="powered"], a[aria-label="Navigate to WRPD"]');
+    powered.forEach(function(el) {
+      const a = el.tagName === 'A' ? el : el.querySelector('a');
+      if (a) {
+        a.href = 'https://github.com/gurination1';
+        a.setAttribute('aria-label', 'Made by Gurdharam');
+        a.textContent = 'Made by Gurdharam';
+      }
+    });
+    const siteby = document.querySelectorAll('[data-name="siteby"]');
+    siteby.forEach(function(el) { el.remove(); });
+  }
+
   if (typeof MutationObserver !== 'undefined') {
     const mo = new MutationObserver(function(mutations) {
+      cleanCredits();
       for (let i = 0; i < mutations.length; i++) {
         const m = mutations[i];
         if (m.type === 'childList') {
@@ -113,6 +128,7 @@
 
   document.addEventListener('DOMContentLoaded', function() {
     document.querySelectorAll('img').forEach(cleanImg);
+    cleanCredits();
   });
 })();
 </script>
