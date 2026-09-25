@@ -357,13 +357,39 @@ RUNTIME_HEAD_INJECTION = f"""
     if (url.includes('cdn.sanity.io/images/')) {{
       const parts = url.split('?')[0].split('/');
       const fname = parts[parts.length - 1];
+      if (fname.startsWith('fcdbdf14cba64b77f457e40c415f08366cd05043')) {{
+        return '{BASE_PATH}/assets/cars/atelier_stitching.jpg';
+      }}
+      if (fname.startsWith('135b8a261d63c2eacb7a981b7479b94c4a74998c')) {{
+        return '{BASE_PATH}/assets/cars/porsche_gt3rs_overhead.png';
+      }}
       if (imgMap[fname]) return '{BASE_PATH}/assets/cars/' + imgMap[fname];
       const h = fname.slice(0, 40);
       if (imgMap[h]) return '{BASE_PATH}/assets/cars/' + imgMap[h];
       if (fname.includes('4d877ce34')) return '{BASE_PATH}/assets/cars/4d877ce34bbd3354636fb32f4d5f944e2487c8b4-512x512.png';
       if (fname.includes('d7577b4b')) return '{BASE_PATH}/assets/cars/d7577b4b9f6a6acda5594e9e6171678dba58e133-1200x630.jpg';
+      return '{BASE_PATH}/assets/cars/' + fname;
     }}
     return url;
+  }}
+
+  function rewriteSrcset(val) {{
+    if (!val || typeof val !== 'string') return val;
+    return val.replace(/https?:\\/\\/cdn\\.sanity\\.io\\/images\\/[^\\/]+\\/production\\/([a-zA-Z0-9_\\-\\.]+)(?:[^\\s,]*)/g, function(match, fname) {{
+      return rewriteUrl(match);
+    }});
+  }}
+
+  function cleanImg(img) {{
+    if (!img) return;
+    const s = img.getAttribute('src');
+    if (s && s.includes('cdn.sanity.io') && !s.includes('.svg')) {{
+      img.setAttribute('src', rewriteUrl(s));
+    }}
+    const ss = img.getAttribute('srcset');
+    if (ss && ss.includes('cdn.sanity.io')) {{
+      img.setAttribute('srcset', rewriteSrcset(ss));
+    }}
   }}
 
   const imgProto = HTMLImageElement.prototype;
@@ -380,13 +406,55 @@ RUNTIME_HEAD_INJECTION = f"""
     }});
   }}
 
+  const origSrcsetDesc = Object.getOwnPropertyDescriptor(imgProto, 'srcset') || Object.getOwnPropertyDescriptor(Element.prototype, 'srcset');
+  if (origSrcsetDesc && origSrcsetDesc.set) {{
+    Object.defineProperty(imgProto, 'srcset', {{
+      set: function(val) {{
+        return origSrcsetDesc.set.call(this, rewriteSrcset(val));
+      }},
+      get: function() {{
+        return origSrcsetDesc.get.call(this);
+      }},
+      configurable: true
+    }});
+  }}
+
   const origSetAttr = Element.prototype.setAttribute;
   Element.prototype.setAttribute = function(name, val) {{
     if (name === 'src' && typeof val === 'string') {{
       val = rewriteUrl(val);
+    }} else if ((name === 'srcset' || name === 'srcSet') && typeof val === 'string') {{
+      val = rewriteSrcset(val);
     }}
     return origSetAttr.call(this, name, val);
   }};
+
+  if (typeof MutationObserver !== 'undefined') {{
+    const mo = new MutationObserver(function(mutations) {{
+      for (let i = 0; i < mutations.length; i++) {{
+        const m = mutations[i];
+        if (m.type === 'childList') {{
+          for (let j = 0; j < m.addedNodes.length; j++) {{
+            const node = m.addedNodes[j];
+            if (node.nodeType === 1) {{
+              if (node.tagName === 'IMG') cleanImg(node);
+              if (node.querySelectorAll) {{
+                const nested = node.querySelectorAll('img');
+                for (let k = 0; k < nested.length; k++) cleanImg(nested[k]);
+              }}
+            }}
+          }}
+        }} else if (m.type === 'attributes') {{
+          cleanImg(m.target);
+        }}
+      }}
+    }});
+    mo.observe(document.documentElement, {{ childList: true, subtree: true, attributes: true, attributeFilter: ['src', 'srcset'] }});
+  }}
+
+  document.addEventListener('DOMContentLoaded', function() {{
+    document.querySelectorAll('img').forEach(cleanImg);
+  }});
 }})();
 </script>
 """
