@@ -89,7 +89,7 @@ HERO_BLEND_ENGINE = f"""
       heroWrapper = document.createElement("div");
       heroWrapper.id = "hero-blend-wrapper";
       heroWrapper.className = "hero-blend-wrapper";
-      heroWrapper.style.cssText = "position:absolute; inset:0; width:100%; height:100%; overflow:hidden; pointer-events:none; z-index:0;";
+      heroWrapper.style.cssText = "position:absolute; inset:0; width:100%; height:100%; overflow:hidden; pointer-events:none; z-index:0; background:#000000 url('{BASE_PATH}/assets/videos/hero_settled_frame.jpg') center/cover no-repeat; opacity:0; visibility:hidden; transition:opacity 0.6s cubic-bezier(0.16,1,0.3,1);";
 
       // 1. Lineup Hero Video (Video 1 - Plays once and holds last frame, DOES NOT LOOP)
       introVideo = document.createElement("video");
@@ -99,13 +99,13 @@ HERO_BLEND_ENGINE = f"""
       introVideo.muted = true;
       introVideo.playsInline = true;
       introVideo.preload = "auto";
-      introVideo.poster = "{BASE_PATH}/assets/videos/hero_poster.jpg";
+      introVideo.poster = "{BASE_PATH}/assets/videos/hero_settled_frame.jpg";
       introVideo.style.cssText = "position:absolute; inset:0; width:100%; height:100%; object-fit:cover; z-index:1; pointer-events:none; opacity:1; will-change:opacity,transform; transition:opacity 0.25s ease-out;";
 
       introVideo.addEventListener("ended", () => {{
         if (introVideo.duration) {{
           try {{
-            introVideo.currentTime = Math.max(0, introVideo.duration - 0.04);
+            introVideo.currentTime = Math.max(0, introVideo.duration - 0.08);
           }} catch(e) {{}}
         }}
         introVideo.pause();
@@ -153,16 +153,18 @@ HERO_BLEND_ENGINE = f"""
       heroSection.insertBefore(heroWrapper, heroSection.firstChild);
     }}
 
-    if (sessionStorage.getItem("forge_entered") !== "true") {{
+    if (document.documentElement.classList.contains("site-entered")) {{
+      heroWrapper.style.setProperty("opacity", "1", "important");
+      heroWrapper.style.setProperty("visibility", "visible", "important");
+      if (introVideo && introVideo.paused && introVideo.currentTime < 0.1) {{
+        introVideo.play().catch(() => {{}});
+      }}
+    }} else {{
       if (introVideo && !introVideo.paused) {{
         introVideo.pause();
       }}
       if (introVideo && introVideo.currentTime > 0.05) {{
         try {{ introVideo.currentTime = 0; }} catch(e) {{}}
-      }}
-    }} else {{
-      if (introVideo && introVideo.paused && introVideo.currentTime < 0.1) {{
-        introVideo.play().catch(() => {{}});
       }}
     }}
   }}
@@ -202,6 +204,11 @@ HERO_BLEND_ENGINE = f"""
 
   function updateTargetProgress() {{
     const scrollY = getScrollY();
+    if (scrollY > 50) {{
+      document.documentElement.classList.add("hero-scrolled");
+    }} else {{
+      document.documentElement.classList.remove("hero-scrolled");
+    }}
     const heroSpacer = document.querySelector(".sc-2b3d2147-3") || document.querySelector(".fHUmBT");
     const spacerHeight = heroSpacer ? heroSpacer.offsetHeight : (window.innerHeight * 1.4);
     targetProgress = Math.min(1, Math.max(0, scrollY / spacerHeight));
@@ -234,7 +241,7 @@ HERO_BLEND_ENGINE = f"""
     }} else {{
       currentProgress = targetProgress;
     }}
-    if (targetProgress === 0 && currentProgress < 0.05) {{
+    if (targetProgress < 0.06 && currentProgress < 0.08) {{
       currentProgress = 0;
     }}
     if (targetProgress === 1 && currentProgress > 0.95) {{
@@ -242,19 +249,20 @@ HERO_BLEND_ENGINE = f"""
     }}
 
     if (introVideo && scrollVideo) {{
-      // Crossfade Blend: Progress 0.00 -> 0.18
-      const blendThreshold = 0.18;
-      if (currentProgress <= 0.005) {{
+      // Crossfade Blend: Progress 0.00 -> 0.22 (smooth settle at top)
+      const blendStart = 0.06;
+      const blendEnd = 0.22;
+      if (currentProgress <= blendStart) {{
         scrollVideo.style.opacity = "0";
         introVideo.style.opacity = "1";
-        if (introVideo.paused && introVideo.currentTime < ((introVideo.duration || 4.1) - 0.1) && sessionStorage.getItem("forge_entered") === "true") {{
+        if (introVideo.paused && introVideo.currentTime < ((introVideo.duration || 4.1) - 0.1) && !introVideo.ended && document.documentElement.classList.contains("site-entered")) {{
           introVideo.play().catch(() => {{}});
         }}
-      }} else if (currentProgress < blendThreshold) {{
-        const ratio = (currentProgress - 0.005) / (blendThreshold - 0.005);
+      }} else if (currentProgress < blendEnd) {{
+        const ratio = (currentProgress - blendStart) / (blendEnd - blendStart);
         scrollVideo.style.opacity = ratio.toFixed(4);
         introVideo.style.opacity = (1 - ratio).toFixed(4);
-        if (introVideo.paused && introVideo.currentTime < ((introVideo.duration || 4.1) - 0.1)) {{
+        if (introVideo.paused && introVideo.currentTime < ((introVideo.duration || 4.1) - 0.1) && !introVideo.ended && document.documentElement.classList.contains("site-entered")) {{
           introVideo.play().catch(() => {{}});
         }}
       }} else {{
@@ -301,13 +309,28 @@ HERO_BLEND_ENGINE = f"""
     heroObserver.observe(document.body || document.documentElement, {{ childList: true, subtree: true }});
   }}
 
-  // Interactive Preloader Controller
+  // Interactive Preloader Controller (Authentic 1:1 Forge lifecycle)
   (function() {{
     let isExiting = false;
     function onEnter() {{
       if (isExiting) return;
       isExiting = true;
-      sessionStorage.setItem("forge_entered", "true");
+
+      // Reveal heroWrapper smoothly after enter
+      const heroWrapper = document.getElementById("hero-blend-wrapper");
+      if (heroWrapper) {{
+        heroWrapper.style.setProperty("opacity", "1", "important");
+        heroWrapper.style.setProperty("visibility", "visible", "important");
+      }}
+
+      // Trigger native React Enter Button if present so React state machine updates
+      const reactEnterBtn = document.querySelector('[role="dialog"] button, [aria-label="Enter Website"]');
+      if (reactEnterBtn && !reactEnterBtn.dataset.simulated) {{
+        reactEnterBtn.dataset.simulated = "true";
+        try {{
+          reactEnterBtn.dispatchEvent(new MouseEvent('click', {{ bubbles: true, cancelable: true }}));
+        }} catch(e) {{}}
+      }}
 
       // Fade out all preloader dialogs smoothly
       const allDialogs = document.querySelectorAll('[role="dialog"]');
@@ -321,26 +344,19 @@ HERO_BLEND_ENGINE = f"""
       document.documentElement.classList.add("site-entered");
       document.body.classList.add("site-entered");
       document.documentElement.classList.remove("lenis-stopped");
-      document.documentElement.style.setProperty("overflow-y", "auto", "important");
-      document.documentElement.style.setProperty("overflow-x", "hidden", "important");
-      document.documentElement.style.setProperty("height", "auto", "important");
-      document.body.style.setProperty("overflow", "visible", "important");
-      document.body.style.setProperty("height", "auto", "important");
-      const pageEl = document.getElementById("page");
-      if (pageEl) {{
-        pageEl.style.setProperty("overflow", "visible", "important");
-        pageEl.style.setProperty("clip-path", "none", "important");
-        pageEl.style.setProperty("view-transition-name", "none", "important");
-        pageEl.style.setProperty("height", "auto", "important");
-      }}
+
+      // Unlock lenis
+      document.querySelectorAll(".lenis").forEach(el => {{
+        el.classList.remove("lenis-stopped");
+      }});
 
       // Reveal hero text and header with authentic styles
-      const h1 = document.querySelector('h1') || document.querySelector('.dpFkxc');
+      const h1 = document.querySelector('h1') || document.querySelector('.dpFkxc') || document.querySelector('.sc-12ea9db1-3');
       if (h1) {{
         h1.style.setProperty('visibility', 'visible', 'important');
         h1.style.setProperty('opacity', '1', 'important');
       }}
-      const desc = document.querySelector('p[data-sanity*="heroDescription"]') || document.querySelector('.hflLLX');
+      const desc = document.querySelector('p[data-sanity*="heroDescription"]') || document.querySelector('.hflLLX') || document.querySelector('.sc-12ea9db1-4');
       if (desc) {{
         desc.style.setProperty('visibility', 'visible', 'important');
         desc.style.setProperty('opacity', '1', 'important');
@@ -351,12 +367,6 @@ HERO_BLEND_ENGINE = f"""
         header.style.setProperty('opacity', '1', 'important');
         header.style.setProperty('display', 'flex', 'important');
       }}
-
-      // Unlock lenis
-      document.querySelectorAll(".lenis").forEach(el => {{
-        el.classList.remove("lenis-stopped");
-        el.style.overflowY = "auto";
-      }});
 
       // Start intro video cleanly from frame 0
       const introVid = document.querySelector(".hero-blend-intro");
@@ -394,75 +404,10 @@ HERO_BLEND_ENGINE = f"""
     }}, true);
 
     window.addEventListener("keydown", (e) => {{
-      if ((e.key === "Enter" || e.key === " ") && !sessionStorage.getItem("forge_entered")) {{
+      if ((e.key === "Enter" || e.key === " ") && !document.documentElement.classList.contains("site-entered")) {{
         onEnter();
       }}
     }}, true);
-
-    // Initial preloader setup
-    function setupPreloader() {{
-      const forceShow = window.location.search.includes("preloader=1");
-      const alreadyEntered = !forceShow && sessionStorage.getItem("forge_entered") === "true";
-      if (alreadyEntered) {{
-        document.querySelectorAll('[role="dialog"]').forEach(d => {{
-          d.style.setProperty('display', 'none', 'important');
-          d.style.setProperty('opacity', '0', 'important');
-          d.style.setProperty('visibility', 'hidden', 'important');
-          d.style.setProperty('pointer-events', 'none', 'important');
-        }});
-
-        document.documentElement.classList.add("site-entered");
-        document.body.classList.add("site-entered");
-        document.documentElement.classList.remove("lenis-stopped");
-        document.documentElement.style.setProperty("overflow-y", "auto", "important");
-        document.documentElement.style.setProperty("overflow-x", "hidden", "important");
-        document.documentElement.style.setProperty("height", "auto", "important");
-        document.body.style.setProperty("overflow", "visible", "important");
-        document.body.style.setProperty("height", "auto", "important");
-        const pageEl = document.getElementById("page");
-        if (pageEl) {{
-          pageEl.style.setProperty("overflow", "visible", "important");
-          pageEl.style.setProperty("clip-path", "none", "important");
-          pageEl.style.setProperty("view-transition-name", "none", "important");
-          pageEl.style.setProperty("height", "auto", "important");
-        }}
-
-        const h1 = document.querySelector('h1') || document.querySelector('.dpFkxc');
-        if (h1) {{
-          h1.style.setProperty('visibility', 'visible', 'important');
-          h1.style.setProperty('opacity', '1', 'important');
-        }}
-        const desc = document.querySelector('p[data-sanity*="heroDescription"]') || document.querySelector('.hflLLX');
-        if (desc) {{
-          desc.style.setProperty('visibility', 'visible', 'important');
-          desc.style.setProperty('opacity', '1', 'important');
-        }}
-        const header = document.querySelector('header');
-        if (header) {{
-          header.style.setProperty('visibility', 'visible', 'important');
-          header.style.setProperty('opacity', '1', 'important');
-          header.style.setProperty('display', 'flex', 'important');
-        }}
-
-        const video = document.querySelector(".hero-blend-intro");
-        if (video && video.paused && video.currentTime < ((video.duration || 4.1) - 0.1)) {{
-          video.play().catch(() => {{}});
-        }}
-
-        const scrVideo = document.querySelector(".hero-blend-scroll");
-        if (scrVideo) {{
-          scrVideo.play().then(() => {{
-            scrVideo.pause();
-            try {{ scrVideo.currentTime = 0; }} catch(e) {{}}
-          }}).catch(() => {{}});
-        }}
-      }}
-    }}
-
-    setupPreloader();
-    if (document.readyState === "loading") {{
-      document.addEventListener("DOMContentLoaded", setupPreloader);
-    }}
   }})();
 }})();
 </script>
@@ -471,21 +416,13 @@ HERO_BLEND_ENGINE = f"""
 .sc-2b039258-5 canvas {{
   display: none !important;
 }}
-html.site-entered {{
-  height: auto !important;
-  overflow-y: auto !important;
-  overflow-x: hidden !important;
-}}
+html.site-entered,
 body.site-entered {{
-  height: auto !important;
-  overflow-y: visible !important;
-  overflow-x: hidden !important;
+  scroll-behavior: auto !important;
 }}
 html.site-entered #page,
 body.site-entered #page,
 #page {{
-  height: auto !important;
-  overflow: visible !important;
   clip-path: none !important;
   view-transition-name: none !important;
 }}
@@ -505,6 +442,19 @@ body.site-entered #page,
   width: 100% !important;
   height: 100dvh !important;
   z-index: 1 !important;
+}}
+#hero-blend-wrapper,
+.hero-blend-wrapper {{
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}}
+html.site-entered #hero-blend-wrapper,
+body.site-entered #hero-blend-wrapper,
+.site-entered #hero-blend-wrapper,
+.site-entered .hero-blend-wrapper {{
+  opacity: 1 !important;
+  visibility: visible !important;
 }}
 html.site-entered [role="dialog"],
 body.site-entered [role="dialog"],
@@ -526,6 +476,15 @@ html.site-entered h1 {{
   color: #ffffff !important;
   transition: opacity 0.8s ease 0.1s;
 }}
+html.site-entered:not(.hero-scrolled) h1 div,
+html.site-entered:not(.hero-scrolled) .dpFkxc div,
+html.site-entered:not(.hero-scrolled) [data-text="top"] h1 div {{
+  opacity: 1 !important;
+  visibility: visible !important;
+  transform: none !important;
+  filter: none !important;
+  transition: opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1), transform 0.8s cubic-bezier(0.16, 1, 0.3, 1), filter 0.8s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}}
 html.site-entered .sc-12ea9db1-4,
 html.site-entered .hflLLX,
 body.site-entered .sc-12ea9db1-4,
@@ -537,6 +496,15 @@ body.site-entered p[data-sanity*="heroDescription"] {{
   color: #ffffff !important;
   transition: opacity 0.8s ease 0.3s;
 }}
+html.site-entered:not(.hero-scrolled) [data-text="bottom"] .line,
+html.site-entered:not(.hero-scrolled) [data-text="bottom"] div.line,
+html.site-entered:not(.hero-scrolled) .hflLLX .line,
+html.site-entered:not(.hero-scrolled) p[data-sanity*="heroDescription"] div {{
+  opacity: 1 !important;
+  visibility: visible !important;
+  transform: none !important;
+  transition: opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.2s, transform 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.2s !important;
+}}
 html.site-entered header,
 body.site-entered header,
 html.site-entered .sc-cf9722b1-0 {{
@@ -545,11 +513,39 @@ html.site-entered .sc-cf9722b1-0 {{
   pointer-events: auto !important;
   transition: opacity 0.6s ease;
 }}
+/* Section 4 & BuildsIntroduction pure black background without car bleed */
+section.sc-3a017878-0,
+[class*="BuildsIntroduction"],
+.sc-d3167531-0,
+div[data-name="jacket"] {{
+  background-color: #000000 !important;
+}}
 </style>
 """
 
 # Runtime interceptor for images and subpath compatibility
 RUNTIME_HEAD_INJECTION = f"""
+<style id="critical-anti-flash">
+  html, body {{
+    background-color: #000000 !important;
+    background: #000000 !important;
+    color: #ffffff !important;
+  }}
+  [role="dialog"] {{
+    background-color: #000000 !important;
+    background: #000000 !important;
+    z-index: 999999 !important;
+  }}
+  #hero-blend-wrapper, .hero-blend-wrapper {{
+    opacity: 0 !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+  }}
+  .site-entered #hero-blend-wrapper, .site-entered .hero-blend-wrapper {{
+    opacity: 1 !important;
+    visibility: visible !important;
+  }}
+</style>
 <script id="gh-pages-base">
 (function() {{
   window.__BASE_PATH__ = '{BASE_PATH}';
@@ -565,6 +561,9 @@ RUNTIME_HEAD_INJECTION = f"""
     if (url.includes('cdn.sanity.io/images/')) {{
       const parts = url.split('?')[0].split('/');
       const fname = parts[parts.length - 1];
+      if (fname.startsWith('f0a6e2fca6100f88fdb82772f94866e7e7f2628c')) {{
+        return '{BASE_PATH}/assets/cars/f0a6e2fca6100f88fdb82772f94866e7e7f2628c-740x740.jpg';
+      }}
       if (fname.startsWith('fcdbdf14cba64b77f457e40c415f08366cd05043')) {{
         return '{BASE_PATH}/assets/cars/atelier_stitching.jpg';
       }}
@@ -656,12 +655,62 @@ RUNTIME_HEAD_INJECTION = f"""
     if (found) creditsCleaned = true;
   }}
 
+  function fixImageLoaded(img) {{
+    if (!img) return;
+    if (img.complete && img.naturalWidth > 0) {{
+      img.setAttribute('data-loaded', 'true');
+      img.style.setProperty('--lqip', 'none', 'important');
+      img.style.setProperty('--lqip-mobile', 'none', 'important');
+      img.style.setProperty('background', 'none', 'important');
+    }}
+  }}
+
+  document.addEventListener('load', function(e) {{
+    if (e.target && e.target.tagName === 'IMG') {{
+      cleanImg(e.target);
+      fixImageLoaded(e.target);
+    }}
+  }}, true);
+
+  if (typeof MutationObserver !== 'undefined') {{
+    const imgObserver = new MutationObserver((mutations) => {{
+      mutations.forEach(m => {{
+        m.addedNodes.forEach(node => {{
+          if (node.tagName === 'IMG') {{
+            cleanImg(node);
+            fixImageLoaded(node);
+          }} else if (node.querySelectorAll) {{
+            node.querySelectorAll('img').forEach(img => {{
+              cleanImg(img);
+              fixImageLoaded(img);
+            }});
+          }}
+        }});
+      }});
+    }});
+    imgObserver.observe(document.documentElement, {{ childList: true, subtree: true }});
+  }}
+
+  setInterval(() => {{
+    document.querySelectorAll('img').forEach(img => {{
+      cleanImg(img);
+      fixImageLoaded(img);
+    }});
+  }}, 250);
+
   document.addEventListener('DOMContentLoaded', function() {{
-    document.querySelectorAll('img').forEach(cleanImg);
+    document.querySelectorAll('img').forEach(function(img) {{
+      cleanImg(img);
+      fixImageLoaded(img);
+    }});
     cleanCredits();
   }});
 
   window.addEventListener('load', function() {{
+    document.querySelectorAll('img').forEach(function(img) {{
+      cleanImg(img);
+      fixImageLoaded(img);
+    }});
     cleanCredits();
   }});
 }})();

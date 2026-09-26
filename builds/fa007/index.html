@@ -1,5 +1,26 @@
 <!DOCTYPE html><html lang="en-GB" class="geistsans_d5a4f12f-module__Ur3q_a__variable editorial_5b27502a-module__OGcOgW__variable"><head>
 
+<style id="critical-anti-flash">
+  html, body {
+    background-color: #000000 !important;
+    background: #000000 !important;
+    color: #ffffff !important;
+  }
+  [role="dialog"] {
+    background-color: #000000 !important;
+    background: #000000 !important;
+    z-index: 999999 !important;
+  }
+  #hero-blend-wrapper, .hero-blend-wrapper {
+    opacity: 0 !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+  }
+  .site-entered #hero-blend-wrapper, .site-entered .hero-blend-wrapper {
+    opacity: 1 !important;
+    visibility: visible !important;
+  }
+</style>
 <script id="gh-pages-base">
 (function() {
   window.__BASE_PATH__ = '/aurelius-atelier';
@@ -15,6 +36,9 @@
     if (url.includes('cdn.sanity.io/images/')) {
       const parts = url.split('?')[0].split('/');
       const fname = parts[parts.length - 1];
+      if (fname.startsWith('f0a6e2fca6100f88fdb82772f94866e7e7f2628c')) {
+        return '/aurelius-atelier/assets/cars/f0a6e2fca6100f88fdb82772f94866e7e7f2628c-740x740.jpg';
+      }
       if (fname.startsWith('fcdbdf14cba64b77f457e40c415f08366cd05043')) {
         return '/aurelius-atelier/assets/cars/atelier_stitching.jpg';
       }
@@ -106,12 +130,62 @@
     if (found) creditsCleaned = true;
   }
 
+  function fixImageLoaded(img) {
+    if (!img) return;
+    if (img.complete && img.naturalWidth > 0) {
+      img.setAttribute('data-loaded', 'true');
+      img.style.setProperty('--lqip', 'none', 'important');
+      img.style.setProperty('--lqip-mobile', 'none', 'important');
+      img.style.setProperty('background', 'none', 'important');
+    }
+  }
+
+  document.addEventListener('load', function(e) {
+    if (e.target && e.target.tagName === 'IMG') {
+      cleanImg(e.target);
+      fixImageLoaded(e.target);
+    }
+  }, true);
+
+  if (typeof MutationObserver !== 'undefined') {
+    const imgObserver = new MutationObserver((mutations) => {
+      mutations.forEach(m => {
+        m.addedNodes.forEach(node => {
+          if (node.tagName === 'IMG') {
+            cleanImg(node);
+            fixImageLoaded(node);
+          } else if (node.querySelectorAll) {
+            node.querySelectorAll('img').forEach(img => {
+              cleanImg(img);
+              fixImageLoaded(img);
+            });
+          }
+        });
+      });
+    });
+    imgObserver.observe(document.documentElement, { childList: true, subtree: true });
+  }
+
+  setInterval(() => {
+    document.querySelectorAll('img').forEach(img => {
+      cleanImg(img);
+      fixImageLoaded(img);
+    });
+  }, 250);
+
   document.addEventListener('DOMContentLoaded', function() {
-    document.querySelectorAll('img').forEach(cleanImg);
+    document.querySelectorAll('img').forEach(function(img) {
+      cleanImg(img);
+      fixImageLoaded(img);
+    });
     cleanCredits();
   });
 
   window.addEventListener('load', function() {
+    document.querySelectorAll('img').forEach(function(img) {
+      cleanImg(img);
+      fixImageLoaded(img);
+    });
     cleanCredits();
   });
 })();
