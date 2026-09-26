@@ -2,6 +2,9 @@ node_modules/
 *.log
 /*.png
 !assets/**/*.png
+!apple-icon.png
+!icon1.png
+!web-app-manifest-*.png
 audit_*.js
 verify_*.js
 run_master_*.js

@@ -1412,6 +1412,8 @@ def patch_logo_in_chunk(chunk_path, backup_path):
 
     code = re.sub(r'([a-zA-Z0-9_$]+)=l\.forwardRef\(function\(e,n\)\{.*?\}\);\1\.displayName="Logo"', logo_replacer, code)
     code = code.replace('"aria-label":"Forge home"', '"aria-label":"Branders home"')
+    code = code.replace('/aurelius-atelier/', f'{BASE_PATH}/')
+    code = code.replace('/aurelius-atelier', f'{BASE_PATH}')
 
     with open(chunk_path, 'w', encoding='utf-8') as f:
         f.write(code)
@@ -1429,6 +1431,18 @@ patch_logo_in_chunk(
     os.path.join(DEST_DIR, '_next/static/chunks/3dca2icpnmf5w.js'),
     os.path.join(DEST_DIR, 'original_3dc.js')
 )
+
+# Sanitize all chunks to ensure BASE_PATH (/branders) is used consistently
+import glob
+for cfile in glob.glob(os.path.join(DEST_DIR, '_next/static/chunks/*.js')):
+    with open(cfile, 'r', encoding='utf-8') as cf:
+        cdata = cf.read()
+    if '/aurelius-atelier' in cdata or 'aurelius-atelier' in cdata:
+        cdata = cdata.replace('/aurelius-atelier/', f'{BASE_PATH}/')
+        cdata = cdata.replace('/aurelius-atelier', f'{BASE_PATH}')
+        cdata = cdata.replace('aurelius-atelier', 'branders')
+        with open(cfile, 'w', encoding='utf-8') as cf:
+            cf.write(cdata)
 
 # Ensure .nojekyll exists
 with open(os.path.join(DEST_DIR, '.nojekyll'), 'w') as f:

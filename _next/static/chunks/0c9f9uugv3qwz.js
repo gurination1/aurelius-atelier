@@ -576,7 +576,7 @@ void main() {
 			position: fixed;
 			inset: 0;
 			z-index: 0;
-			background: url('/aurelius-atelier/images/forged-carbon.jpg') repeat center center;
+			background: url('/branders/images/forged-carbon.jpg') repeat center center;
 			background-size: 313px 314px;
             opacity: 0.2;
 			pointer-events: none;
@@ -840,7 +840,7 @@ void main() {
 			content: '';
 			position: absolute;
 			inset: 0;
-			background: url('/aurelius-atelier/images/forged-carbon.jpg') repeat center center;
+			background: url('/branders/images/forged-carbon.jpg') repeat center center;
 			background-size: 313px 314px;
 			background-color: ${(0,u.getGlobal)("black")};
 			opacity: 0.2;
