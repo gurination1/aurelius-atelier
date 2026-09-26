@@ -284,6 +284,64 @@ HERO_BLEND_ENGINE = f"""
       }}
     }}
 
+    // 6. Synchronized Hero Text Fade-out & Introduction Scroll-Reveal
+    const heroSection = document.querySelector(".sc-12ea9db1-0") || document.querySelector(".lagqCY");
+    const introH2 = document.querySelector(".sc-2b039258-4") || document.querySelector(".gSwEKM") || document.querySelector('h2[data-sanity*="introductionHeading"]');
+
+    // A) Hero Section Glide & Fade (0.04 -> 0.22)
+    if (heroSection) {{
+      if (currentProgress <= 0.04) {{
+        heroSection.style.setProperty('opacity', '1', 'important');
+        heroSection.style.setProperty('transform', 'none', 'important');
+        heroSection.style.setProperty('visibility', 'visible', 'important');
+        heroSection.style.setProperty('pointer-events', 'auto', 'important');
+      }} else if (currentProgress < 0.22) {{
+        const ratio = (currentProgress - 0.04) / (0.22 - 0.04);
+        const alpha = Math.max(0, 1 - ratio);
+        heroSection.style.setProperty('opacity', alpha.toFixed(4), 'important');
+        heroSection.style.setProperty('transform', `translate3d(0, ${{-(ratio * 40).toFixed(1)}}px, 0)`, 'important');
+        heroSection.style.setProperty('visibility', alpha > 0.01 ? 'visible' : 'hidden', 'important');
+        heroSection.style.setProperty('pointer-events', alpha > 0.1 ? 'auto' : 'none', 'important');
+      }} else {{
+        heroSection.style.setProperty('opacity', '0', 'important');
+        heroSection.style.setProperty('visibility', 'hidden', 'important');
+        heroSection.style.setProperty('pointer-events', 'none', 'important');
+      }}
+    }}
+
+    // B) Scroll-Reveal Introduction Heading (0.18 -> 0.94)
+    // Synchronized authentic Forge typography scale(0.85 -> 1.0 -> 1.08) & blur(10px -> 0px -> 8px)
+    if (introH2) {{
+      if (currentProgress < 0.18 || currentProgress > 0.94) {{
+        introH2.style.setProperty('opacity', '0', 'important');
+        introH2.style.setProperty('visibility', 'hidden', 'important');
+        introH2.style.setProperty('transform', 'scale(0.85)', 'important');
+        introH2.style.setProperty('filter', 'blur(10px)', 'important');
+      }} else if (currentProgress >= 0.18 && currentProgress < 0.42) {{
+        const ratio = (currentProgress - 0.18) / (0.42 - 0.18);
+        const scale = 0.85 + (0.15 * ratio);
+        const blur = (1 - ratio) * 10;
+        introH2.style.setProperty('visibility', 'visible', 'important');
+        introH2.style.setProperty('opacity', ratio.toFixed(4), 'important');
+        introH2.style.setProperty('transform', `scale(${{scale.toFixed(4)}})`, 'important');
+        introH2.style.setProperty('filter', `blur(${{blur.toFixed(1)}}px)`, 'important');
+      }} else if (currentProgress >= 0.42 && currentProgress <= 0.68) {{
+        introH2.style.setProperty('visibility', 'visible', 'important');
+        introH2.style.setProperty('opacity', '1', 'important');
+        introH2.style.setProperty('transform', 'scale(1.0)', 'important');
+        introH2.style.setProperty('filter', 'blur(0px)', 'important');
+      }} else {{
+        const ratio = (currentProgress - 0.68) / (0.92 - 0.68);
+        const scale = 1.0 + (0.08 * Math.min(1, ratio));
+        const blur = Math.min(8, ratio * 8);
+        const alpha = Math.max(0, 1 - ratio);
+        introH2.style.setProperty('visibility', alpha > 0.01 ? 'visible' : 'hidden', 'important');
+        introH2.style.setProperty('opacity', alpha.toFixed(4), 'important');
+        introH2.style.setProperty('transform', `scale(${{scale.toFixed(4)}})`, 'important');
+        introH2.style.setProperty('filter', `blur(${{blur.toFixed(1)}}px)`, 'important');
+      }}
+    }}
+
     requestAnimationFrame(renderScrubLoop);
   }}
 
@@ -351,15 +409,11 @@ HERO_BLEND_ENGINE = f"""
       }});
 
       // Reveal hero text and header with authentic styles
-      const h1 = document.querySelector('h1') || document.querySelector('.dpFkxc') || document.querySelector('.sc-12ea9db1-3');
-      if (h1) {{
-        h1.style.setProperty('visibility', 'visible', 'important');
-        h1.style.setProperty('opacity', '1', 'important');
-      }}
-      const desc = document.querySelector('p[data-sanity*="heroDescription"]') || document.querySelector('.hflLLX') || document.querySelector('.sc-12ea9db1-4');
-      if (desc) {{
-        desc.style.setProperty('visibility', 'visible', 'important');
-        desc.style.setProperty('opacity', '1', 'important');
+      const heroSection = document.querySelector(".sc-12ea9db1-0") || document.querySelector(".lagqCY");
+      if (heroSection) {{
+        heroSection.style.setProperty('visibility', 'visible', 'important');
+        heroSection.style.setProperty('opacity', '1', 'important');
+        heroSection.style.setProperty('pointer-events', 'auto', 'important');
       }}
       const header = document.querySelector('header');
       if (header) {{
@@ -464,17 +518,16 @@ body.site-entered [role="dialog"],
   visibility: hidden !important;
   pointer-events: none !important;
 }}
-html.site-entered .sc-12ea9db1-3,
-html.site-entered .dpFkxc,
-body.site-entered .sc-12ea9db1-3,
-body.site-entered .dpFkxc,
-html.site-entered h1[data-sanity*="heroHeading"],
-body.site-entered h1[data-sanity*="heroHeading"],
-html.site-entered h1 {{
+html.site-entered:not(.hero-scrolled) .sc-12ea9db1-3,
+html.site-entered:not(.hero-scrolled) .dpFkxc,
+body.site-entered:not(.hero-scrolled) .sc-12ea9db1-3,
+body.site-entered:not(.hero-scrolled) .dpFkxc,
+html.site-entered:not(.hero-scrolled) h1[data-sanity*="heroHeading"],
+body.site-entered:not(.hero-scrolled) h1[data-sanity*="heroHeading"],
+html.site-entered:not(.hero-scrolled) h1 {{
   visibility: visible !important;
   opacity: 1 !important;
   color: #ffffff !important;
-  transition: opacity 0.8s ease 0.1s;
 }}
 html.site-entered:not(.hero-scrolled) h1 div,
 html.site-entered:not(.hero-scrolled) .dpFkxc div,
@@ -483,7 +536,6 @@ html.site-entered:not(.hero-scrolled) [data-text="top"] h1 div {{
   visibility: visible !important;
   transform: none !important;
   filter: none !important;
-  transition: opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1), transform 0.8s cubic-bezier(0.16, 1, 0.3, 1), filter 0.8s cubic-bezier(0.16, 1, 0.3, 1) !important;
 }}
 html.site-entered .sc-12ea9db1-4,
 html.site-entered .hflLLX,
@@ -491,10 +543,20 @@ body.site-entered .sc-12ea9db1-4,
 body.site-entered .hflLLX,
 html.site-entered p[data-sanity*="heroDescription"],
 body.site-entered p[data-sanity*="heroDescription"] {{
+  color: #ffffff !important;
+  max-width: 680px !important;
+  margin: 0 auto !important;
+  padding-bottom: clamp(1.5rem, 3.5vh, 4rem) !important;
+  line-height: 1.35 !important;
+}}
+html.site-entered:not(.hero-scrolled) .sc-12ea9db1-4,
+html.site-entered:not(.hero-scrolled) .hflLLX,
+body.site-entered:not(.hero-scrolled) .sc-12ea9db1-4,
+body.site-entered:not(.hero-scrolled) .hflLLX,
+html.site-entered:not(.hero-scrolled) p[data-sanity*="heroDescription"],
+body.site-entered:not(.hero-scrolled) p[data-sanity*="heroDescription"] {{
   visibility: visible !important;
   opacity: 1 !important;
-  color: #ffffff !important;
-  transition: opacity 0.8s ease 0.3s;
 }}
 html.site-entered:not(.hero-scrolled) [data-text="bottom"] .line,
 html.site-entered:not(.hero-scrolled) [data-text="bottom"] div.line,
@@ -503,7 +565,65 @@ html.site-entered:not(.hero-scrolled) p[data-sanity*="heroDescription"] div {{
   opacity: 1 !important;
   visibility: visible !important;
   transform: none !important;
-  transition: opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.2s, transform 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.2s !important;
+}}
+html.hero-scrolled .sc-12ea9db1-0,
+html.hero-scrolled .lagqCY,
+html.hero-scrolled .sc-12ea9db1-3,
+html.hero-scrolled .dpFkxc,
+html.hero-scrolled .sc-12ea9db1-4,
+html.hero-scrolled .hflLLX {{
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}}
+
+/* Hero section text in front of video */
+.sc-12ea9db1-0,
+.lagqCY {{
+  position: absolute !important;
+  inset: 0 !important;
+  z-index: 15 !important;
+  pointer-events: none !important;
+}}
+.sc-12ea9db1-0 [data-sanity],
+.lagqCY [data-sanity] {{
+  pointer-events: auto !important;
+}}
+
+/* Introduction section holding background video */
+.sc-2b039258-0,
+.dKbqDu {{
+  position: absolute !important;
+  inset: 0 !important;
+  z-index: 1 !important;
+  pointer-events: none !important;
+}}
+.sc-2b039258-3,
+.fubkDG {{
+  position: absolute !important;
+  inset: 0 !important;
+  z-index: 25 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  pointer-events: none !important;
+  padding-inline: var(--gap-l, 2rem) !important;
+}}
+.sc-2b039258-4,
+.gSwEKM,
+h2[data-sanity*="introductionHeading"] {{
+  position: relative !important;
+  z-index: 26 !important;
+  color: #ffffff !important;
+  text-align: center !important;
+  text-wrap: balance !important;
+  font-family: var(--font-heading) !important;
+  font-weight: 200 !important;
+  font-size: clamp(2.5rem, 5.5vw, 6.5rem) !important;
+  line-height: 1.15 !important;
+  letter-spacing: -0.04em !important;
+  will-change: transform, opacity, filter !important;
+  pointer-events: none !important;
 }}
 html.site-entered header,
 body.site-entered header,
@@ -887,7 +1007,7 @@ COPYWRITING_REPLACEMENTS = [
     ('A luxury automotive atelier for bespoke styling, performance and craftsmanship — one-off Defender, G63, Range Rover, Urus and 911 builds.',
      'An elite automotive atelier engineering bespoke widebody styling, forged carbon aero, and race-bred performance modifications for Defender, G63, Urus, and 911 platforms.'),
     ('A luxury automotive atelier for bespoke styling, performance and craftsmanship.',
-     'An elite performance atelier sculpting bespoke forged carbon, aggressive stance, and race-bred detailing for high-calibre automotive modifiers.'),
+     'Bespoke forged carbon, aggressive stance, and race-bred engineering.'),
 
     # 3. Modification Pillars (01 Vision, 02 Engineering, 03 Execution)
     ('<h3>Identity</h3>', '<h3>Vision</h3>'),
