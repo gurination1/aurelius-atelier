@@ -716,6 +716,14 @@ RUNTIME_HEAD_INJECTION = f"""
     siteby.forEach(function(el) {{
       if (el.style.display !== 'none') el.style.display = 'none';
     }});
+    const headerHome = document.querySelector('a[aria-label*="home"].glWlYP, a[aria-label*="Forge home"]');
+    if (headerHome && headerHome.getAttribute('aria-label') !== 'Branders home') {{
+      headerHome.setAttribute('aria-label', 'Branders home');
+    }}
+    const dialog = document.querySelector('[role="dialog"][aria-label*="Forge"]');
+    if (dialog) {{
+      dialog.setAttribute('aria-label', 'Welcome to Branders');
+    }}
   }}
 
   function fixImageLoaded(img) {{
@@ -833,6 +841,38 @@ RUNTIME_HEAD_INJECTION = f"""
 }})();
 </script>
 """
+BRANDERS_EMBLEM_D = "M39 1.5L48 8.5L45 10L39 5L33 10L30 8.5L39 1.5ZM28.5 9.5L14 3.5L25 11.5L33 11.5L28.5 9.5ZM49.5 9.5L64 3.5L53 11.5L45 11.5L49.5 9.5ZM31.5 13L18 8.5L27 15.5L33.5 15.5L31.5 13ZM46.5 13L60 8.5L51 15.5L44.5 15.5L46.5 13ZM39 7.5L44.5 14L39 20.5L33.5 14L39 7.5ZM39 11L36.2 14.5L39 17.5L41.8 14.5L39 11Z"
+
+BRANDERS_LETTERS = [
+    ("b", "M1.5905 35.8465V25.6072H5.1094Q6.9265 25.6072 7.835 26.2706Q8.7436 26.934 8.7436 28.3617Q8.7436 29.0251 8.4552 29.5299Q8.1667 30.0346 7.6331 30.3158Q7.0995 30.5971 6.364 30.5971L6.3496 30.5105Q7.662 30.5105 8.4191 31.21Q9.1762 31.9094 9.1762 33.0343Q9.1762 34.4332 8.2677 35.1398Q7.3591 35.8465 5.6862 35.8465ZM2.8308 34.6351H5.6862Q6.739 34.6351 7.3086 34.2024Q7.8783 33.7698 7.8783 32.9622Q7.8783 32.1546 7.3086 31.7003Q6.739 31.246 5.6862 31.246H2.8308ZM2.8308 30.0346H5.1094Q6.2342 30.0346 6.8399 29.6092Q7.4457 29.1837 7.4457 28.4194Q7.4457 27.6118 6.8616 27.2152Q6.2775 26.8186 5.1094 26.8186H2.8308Z"),
+    ("r", "M11.3972 35.8465V25.6072H15.2766Q16.3582 25.6072 17.1369 25.9822Q17.9157 26.3571 18.3411 27.0566Q18.7666 27.756 18.7666 28.7078Q18.7666 29.4001 18.4421 29.9409Q18.1176 30.4817 17.6128 30.799Q17.1081 31.1162 16.5601 31.1451L16.4735 31.0153Q17.411 31.0153 17.9517 31.4479Q18.4925 31.8806 18.5791 32.8324L18.8675 35.8465H17.6128L17.3533 32.9622Q17.2956 32.3276 16.899 32.0248Q16.5024 31.7219 15.6083 31.7219H12.6373V35.8465ZM12.6373 30.5105H15.4352Q16.3726 30.5105 16.9206 30.0346Q17.4686 29.5587 17.4686 28.679Q17.4686 27.7849 16.9062 27.3017Q16.3438 26.8186 15.2766 26.8186H12.6373Z"),
+    ("a", "M20.0501 35.8465 23.742 25.6072H25.4149L29.1068 35.8465H27.7512L26.7273 32.9333H22.4296L21.4057 35.8465ZM22.8479 31.7219H26.309L24.5785 26.6888Z"),
+    ("n", "M30.722 35.8465V25.6072H32.4815L37.5434 34.6062V25.6072H38.7837V35.8465H36.9377L31.9623 27.0205V35.8465Z"),
+    ("d", "M41.4372 35.8465V25.6072H44.61Q46.9751 25.6072 48.2514 26.9412Q49.5277 28.2752 49.5277 30.7413Q49.5277 33.1929 48.2731 34.5197Q47.0184 35.8465 44.6965 35.8465ZM42.6775 34.6351H44.61Q46.4127 34.6351 47.3212 33.6616Q48.2298 32.6882 48.2298 30.7413Q48.2298 28.7655 47.3212 27.7921Q46.4127 26.8186 44.61 26.8186H42.6775Z"),
+    ("e", "M51.4458 35.8465V25.6072H57.8778V26.8186H52.6861V30.1211H57.7047V31.3037H52.6861V34.6351H57.9932V35.8465Z"),
+    ("r", "M60.142 35.8465V25.6072H64.0214Q65.103 25.6072 65.8818 25.9822Q66.6605 26.3571 67.086 27.0566Q67.5114 27.756 67.5114 28.7078Q67.5114 29.4001 67.1869 29.9409Q66.8624 30.4817 66.3577 30.799Q65.8529 31.1162 65.3049 31.1451L65.2184 31.0153Q66.1558 31.0153 66.6966 31.4479Q67.2374 31.8806 67.3239 32.8324L67.6124 35.8465H66.3577L66.0981 32.9622Q66.0404 32.3276 65.6438 32.0248Q65.2472 31.7219 64.3531 31.7219H61.3822V35.8465ZM61.3822 30.5105H64.18Q65.1174 30.5105 65.6654 30.0346Q66.2135 29.5587 66.2135 28.679Q66.2135 27.7849 65.651 27.3017Q65.0886 26.8186 64.0214 26.8186H61.3822Z"),
+    ("s", "M73.3521 36.0772Q72.1696 36.0772 71.2898 35.6302Q70.4101 35.1831 69.8982 34.3971Q69.3862 33.6112 69.2997 32.5728L70.5976 32.4863Q70.6986 33.2506 71.0447 33.7842Q71.3908 34.3178 71.9749 34.5918Q72.5589 34.8658 73.381 34.8658Q74.1021 34.8658 74.6068 34.6784Q75.1116 34.4909 75.3784 34.1303Q75.6452 33.7698 75.6452 33.2506Q75.6452 32.7747 75.4216 32.407Q75.1981 32.0392 74.5708 31.7291Q73.9434 31.4191 72.7176 31.1162Q71.535 30.8134 70.8356 30.4528Q70.1361 30.0923 69.8261 29.5731Q69.516 29.054 69.516 28.2896Q69.516 27.4243 69.927 26.7681Q70.338 26.112 71.1024 25.7442Q71.8667 25.3765 72.9195 25.3765Q74.0444 25.3765 74.852 25.8019Q75.6596 26.2273 76.1355 26.9628Q76.6114 27.6983 76.7268 28.6357L75.4288 28.7223Q75.3423 28.1021 75.0322 27.619Q74.7222 27.1359 74.1886 26.8619Q73.655 26.5879 72.8906 26.5879Q71.9388 26.5879 71.3764 27.0421Q70.8139 27.4964 70.8139 28.2319Q70.8139 28.7078 71.0375 29.0179Q71.261 29.328 71.8379 29.5659Q72.4147 29.8039 73.4963 30.0779Q74.7799 30.3952 75.537 30.835Q76.2941 31.2749 76.6186 31.8517Q76.9431 32.4286 76.9431 33.1641Q76.9431 34.0582 76.4816 34.7144Q76.0201 35.3706 75.2125 35.7239Q74.4049 36.0772 73.3521 36.0772Z"),
+]
+
+def replace_branders_logo_and_text(html_str):
+    m = re.search(r'clipPath id="([^"]+)"', html_str)
+    clip_id = m.group(1) if m else '_R_dmiivb_'
+    letters_svg = "".join(f'<path d="{d}" data-logo="{l}"></path>' for l, d in BRANDERS_LETTERS)
+    branders_svg = (
+        f'<svg width="78" height="36" viewBox="0 0 78 36" fill="none" xmlns="http://www.w3.org/2000/svg" class="sc-e576e939-0 gBefHe logo">'
+        f'<defs><clipPath id="{clip_id}"><rect x="0" y="24" width="78" height="12"></rect></clipPath></defs>'
+        f'<g class="icon"><path d="{BRANDERS_EMBLEM_D}"></path></g>'
+        f'<g class="text" clip-path="url(#{clip_id})">{letters_svg}</g></svg>'
+    )
+    html_str = re.sub(r'<svg width="78" height="36" viewBox="0 0 78 36"[^>]*class="[^"]*logo[^"]*"[^>]*>.*?</svg>', branders_svg, html_str, count=1)
+    
+    html_str = re.sub(r'Forge\s+Automotive\s+Ltd', 'Branders Ltd', html_str)
+    html_str = re.sub(r'Forge\s+Automotive', 'Branders', html_str)
+    html_str = re.sub(r'Forge\s+Ltd', 'Branders Ltd', html_str)
+    html_str = re.sub(r'\bForge\s+home\b', 'Branders home', html_str)
+    html_str = re.sub(r'\bWelcome to Forge\b', 'Welcome to Branders', html_str)
+    html_str = re.sub(r'\bForge\b', 'Branders', html_str)
+    return html_str
 
 def process_page(slug):
     in_file = os.path.join(SRC_DIR, slug, 'index.html') if slug else os.path.join(SRC_DIR, 'index.html')
@@ -845,7 +885,10 @@ def process_page(slug):
     # 1. Replace Sanity images (preserving Section 4 OEM partner logo SVGs)
     html, rep_count = sanity_pattern.subn(sanity_replacer, html)
 
-    # 2. Wire GitHub Pages subpath compatibility (prevent double prefix)
+    # 2. Surgical Brand & Logo replacement: Forge -> Branders
+    html = replace_branders_logo_and_text(html)
+
+    # 3. Wire GitHub Pages subpath compatibility (prevent double prefix)
     html = re.sub(r'([\"\'`])/_next/', rf'\1{BASE_PATH}/_next/', html)
     html = re.sub(r'([\"\'`])/(ActiveFrame\.js|images/)', rf'\1{BASE_PATH}/\2', html)
     html = re.sub(r'([\"\'`])/(favicon\.ico|icon0\.svg|icon1\.png|apple-icon\.png|manifest\.json)', rf'\1{BASE_PATH}/\2', html)
@@ -862,7 +905,7 @@ def process_page(slug):
 
     footer_picture = f'''<picture>
 <source media="(min-width: 1024px)" srcSet="{BASE_PATH}/assets/cars/c6f15b9448f9090f3c7d9f0b5fab4e3cbc8e7284-2880x1800.jpg 3840w, {BASE_PATH}/assets/cars/c6f15b9448f9090f3c7d9f0b5fab4e3cbc8e7284-2880x1800.jpg 2048w, {BASE_PATH}/assets/cars/c6f15b9448f9090f3c7d9f0b5fab4e3cbc8e7284-2880x1800.jpg 1920w, {BASE_PATH}/assets/cars/c6f15b9448f9090f3c7d9f0b5fab4e3cbc8e7284-2880x1800.jpg 1400w, {BASE_PATH}/assets/cars/c6f15b9448f9090f3c7d9f0b5fab4e3cbc8e7284-2880x1800.jpg 1080w, {BASE_PATH}/assets/cars/c6f15b9448f9090f3c7d9f0b5fab4e3cbc8e7284-2880x1800.jpg 750w" sizes="100vw"/>
-<img alt="Three custom Forge vehicles, a black Mercedes G-Wagen, a red Porsche 911 GT3, and a black Land Rover Defender, are parked on a dark surface." loading="lazy" decoding="async" srcSet="{BASE_PATH}/assets/cars/9ae611ac36488077eadfc0d1f8a5aa163aae1c8e-880x1592.jpg 880w" src="{BASE_PATH}/assets/cars/9ae611ac36488077eadfc0d1f8a5aa163aae1c8e-880x1592.jpg" width="880" height="1592" crossorigin="anonymous" data-deferred="false" style="position:absolute;height:100%;width:100%;left:0;top:0;right:0;bottom:0;color:transparent;" data-loaded="true" class="sc-b83f0c97-0 ckbPhL"/>
+<img alt="Three custom Branders vehicles, a black Mercedes G-Wagen, a red Porsche 911 GT3, and a black Land Rover Defender, are parked on a dark surface." loading="lazy" decoding="async" srcSet="{BASE_PATH}/assets/cars/9ae611ac36488077eadfc0d1f8a5aa163aae1c8e-880x1592.jpg 880w" src="{BASE_PATH}/assets/cars/9ae611ac36488077eadfc0d1f8a5aa163aae1c8e-880x1592.jpg" width="880" height="1592" crossorigin="anonymous" data-deferred="false" style="position:absolute;height:100%;width:100%;left:0;top:0;right:0;bottom:0;color:transparent;" data-loaded="true" class="sc-b83f0c97-0 ckbPhL"/>
 </picture>'''
     html = re.sub(r'<aside aria-hidden="true" class="[^"]*gXORHV[^"]*"><picture>.*?</picture></aside>',
                   rf'<aside aria-hidden="true" class="sc-337305d3-0 sc-a2c8839e-1 kTCIhD gXORHV">{footer_picture}</aside>', html, flags=re.DOTALL)
@@ -973,9 +1016,11 @@ if os.path.exists(original_414_path):
     p_code = p_code.replace('x="/"===f&&!p', 'x=(["/","/aurelius-atelier","/aurelius-atelier/"].includes(f))&&!p')
     # 5. Ensure preloader completes reliably once cinematic text completes
     p_code = p_code.replace('Y=(F?K&&(!M||R):J)&&B', 'Y=B')
+    # 6. Surgical Brand Name replacement: Forge Automotive -> Branders
+    p_code = p_code.replace('"aria-label":"Welcome to Forge Automotive"', '"aria-label":"Welcome to Branders"')
     with open(preloader_chunk_path, 'w', encoding='utf-8') as f:
         f.write(p_code)
-    print("Patched 414 chunk: scroll reset, mini site preview, subpath homepage & reliable preloader")
+    print("Patched 414 chunk: scroll reset, mini site preview, subpath homepage, reliable preloader & Branders aria-label")
 
 # Hero background chunk update: 50ms ActiveFrame timeout & persistent background container
 hero_chunk_path = os.path.join(DEST_DIR, '_next/static/chunks/43lg5uv8_am8v.js')
@@ -999,6 +1044,52 @@ if os.path.exists(framework_chunk_path):
     with open(framework_chunk_path, 'w', encoding='utf-8') as f:
         f.write(f_code)
     print("Patched React framework chunk: neutralized error 418 hydration crash and safe insertBefore")
+
+# Header chunks logo update: Branders winged shield emblem & Branders letter paths
+BRANDERS_REACT_PATHS = ",".join(
+    f'(0,t.jsx)("path",{{d:"{d}","data-logo":"{l}"}})'
+    for l, d in BRANDERS_LETTERS
+)
+
+def patch_logo_in_chunk(chunk_path, backup_path):
+    if not os.path.exists(backup_path):
+        return
+    shutil.copyfile(backup_path, chunk_path)
+    with open(chunk_path, 'r', encoding='utf-8') as f:
+        code = f.read()
+
+    def logo_replacer(match):
+        v = match.group(1)
+        return (
+            f'{v}=l.forwardRef(function(e,n){{'
+            f'let x=l.useId().replace(/:/g,"");'
+            f'let defs=(0,t.jsx)("defs",{{children:(0,t.jsx)("clipPath",{{id:x,children:(0,t.jsx)("rect",{{x:"0",y:"24",width:"78",height:"12"}})}})}});'
+            f'let icon=(0,t.jsx)("g",{{className:"icon",children:(0,t.jsx)("path",{{d:"{BRANDERS_EMBLEM_D}"}})}});'
+            f'let text=(0,t.jsxs)("g",{{className:"text",clipPath:`url(#${{x}})`,children:[{BRANDERS_REACT_PATHS}]}}'
+            f');'
+            f'return (0,t.jsxs)(d,{{width:"78",height:"36",viewBox:"0 0 78 36",fill:"none",xmlns:"http://www.w3.org/2000/svg",ref:n,className:"logo",...e,children:[defs,icon,text]}});'
+            f'}});{v}.displayName="Logo"'
+        )
+
+    code = re.sub(r'([a-zA-Z0-9_$]+)=l\.forwardRef\(function\(e,n\)\{.*?\}\);\1\.displayName="Logo"', logo_replacer, code)
+    code = code.replace('"aria-label":"Forge home"', '"aria-label":"Branders home"')
+
+    with open(chunk_path, 'w', encoding='utf-8') as f:
+        f.write(code)
+    print(f"Patched header logo in {os.path.basename(chunk_path)}")
+
+patch_logo_in_chunk(
+    os.path.join(DEST_DIR, '_next/static/chunks/0mxr_1ejp16yi.js'),
+    os.path.join(DEST_DIR, 'original_0mxr.js')
+)
+patch_logo_in_chunk(
+    os.path.join(DEST_DIR, '_next/static/chunks/1n4wodqi4yntq.js'),
+    os.path.join(DEST_DIR, 'original_1n4.js')
+)
+patch_logo_in_chunk(
+    os.path.join(DEST_DIR, '_next/static/chunks/3dca2icpnmf5w.js'),
+    os.path.join(DEST_DIR, 'original_3dc.js')
+)
 
 # Ensure .nojekyll exists
 with open(os.path.join(DEST_DIR, '.nojekyll'), 'w') as f:
