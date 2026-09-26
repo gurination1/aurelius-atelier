@@ -1001,13 +1001,23 @@ RUNTIME_HEAD_INJECTION = f"""
   }};
 
   function cleanCredits() {{
-    const powered = document.querySelectorAll('[data-name="powered"], a[aria-label="Navigate to WRPD"]');
+    const powered = document.querySelectorAll('[data-name="powered"], a[aria-label="Navigate to WRPD"], a[aria-label="Made by Gurdharam"]');
     powered.forEach(function(el) {{
       const a = el.tagName === 'A' ? el : el.querySelector('a');
-      if (a && a.textContent !== 'Made by Gurdharam') {{
-        a.href = 'https://github.com/gurination1';
-        a.setAttribute('aria-label', 'Made by Gurdharam');
-        a.textContent = 'Made by Gurdharam';
+      if (a) {{
+        if (a.href !== 'https://gurdharam.com/' && a.href !== 'https://gurdharam.com') {{
+          a.href = 'https://gurdharam.com';
+        }}
+        if (a.getAttribute('aria-label') !== 'Made by Gurdharam') {{
+          a.setAttribute('aria-label', 'Made by Gurdharam');
+        }}
+        if (a.textContent !== 'Made by Gurdharam') {{
+          a.textContent = 'Made by Gurdharam';
+        }}
+        if (a.target !== '_blank') {{
+          a.target = '_blank';
+          a.rel = 'noopener noreferrer';
+        }}
       }}
     }});
     const siteby = document.querySelectorAll('[data-name="siteby"]');
@@ -1488,8 +1498,10 @@ if os.path.exists(menu_chunk_path):
         target_end = m_code.find(',r[2]=n):n=r[2],n', target_start)
         if target_end != -1:
             target_end += len(',r[2]=n):n=r[2],n')
-            new_credits = 'r[1]===Symbol.for("react.memo_cache_sentinel")?(a=(0,t.jsx)("p",{"data-name":"powered",children:(0,t.jsx)("a",{href:"https://github.com/gurination1",target:"_blank",rel:"noopener noreferrer","aria-label":"Made by Gurdharam",children:"Made by Gurdharam"})}),r[1]=a):a=r[1],r[2]===Symbol.for("react.memo_cache_sentinel")?(n=(0,t.jsxs)(y,{children:[e,a]}),r[2]=n):n=r[2],n'
+            new_credits = 'r[1]===Symbol.for("react.memo_cache_sentinel")?(a=(0,t.jsx)("p",{"data-name":"powered",children:(0,t.jsx)("a",{href:"https://gurdharam.com",target:"_blank",rel:"noopener noreferrer","aria-label":"Made by Gurdharam",children:"Made by Gurdharam"})}),r[1]=a):a=r[1],r[2]===Symbol.for("react.memo_cache_sentinel")?(n=(0,t.jsxs)(y,{children:[e,a]}),r[2]=n):n=r[2],n'
             m_code = m_code[:target_start] + new_credits + m_code[target_end:]
+    m_code = m_code.replace('https://github.com/gurination1', 'https://gurdharam.com')
+    m_code = m_code.replace('https://wrpdgroup.com', 'https://gurdharam.com')
     m_code = m_code.replace('z-index: 0;\n        background: ${(0,p.getBrand)("bc3")};',
                             'z-index: 2;\n        background: rgba(10, 10, 10, 0.45);\n        backdrop-filter: blur(4px);\n        -webkit-backdrop-filter: blur(4px);')
     m_code = m_code.replace("[data-name='powered'] a{",
@@ -1502,6 +1514,8 @@ menu_chunk_path_alt = os.path.join(DEST_DIR, '_next/static/chunks/1o6f75j2bh32_.
 if os.path.exists(menu_chunk_path_alt):
     with open(menu_chunk_path_alt, 'r', encoding='utf-8') as f:
         m_alt = f.read()
+    m_alt = m_alt.replace('https://github.com/gurination1', 'https://gurdharam.com')
+    m_alt = m_alt.replace('https://wrpdgroup.com', 'https://gurdharam.com')
     m_alt = m_alt.replace('z-index: 0;\n        background: ${(0,u.getBrand)("bc3")};',
                           'z-index: 2;\n        background: rgba(10, 10, 10, 0.45);\n        backdrop-filter: blur(4px);\n        -webkit-backdrop-filter: blur(4px);')
     m_alt = m_alt.replace("[data-name='powered'] a{",
@@ -1655,7 +1669,8 @@ def patch_menu_alt_chunk():
     code = code.replace('return l[6]!==c||l[7]!==f||l[8]!==o||l[9]!==p||l[10]!==n?(r=(0,t.jsx)(L.default,{href:o,',
                         f'let o_safe="string"==typeof o&&o.startsWith("/")&&!o.startsWith("{BASE_PATH}")?"{BASE_PATH}"+("/"===o?"/":o):o;return l[6]!==c||l[7]!==f||l[8]!==o||l[9]!==p||l[10]!==n?(r=(0,t.jsx)(L.default,{{href:o_safe,')
     code = code.replace('Powered by WRPD', 'Made by Gurdharam')
-    code = code.replace('https://wrpdgroup.com', 'https://github.com/gurination1')
+    code = code.replace('https://wrpdgroup.com', 'https://gurdharam.com')
+    code = code.replace('https://github.com/gurination1', 'https://gurdharam.com')
     code = code.replace('"aria-label":"Powered by WRPD"', '"aria-label":"Made by Gurdharam"')
     with open(target_path, 'w', encoding='utf-8') as f:
         f.write(code)
@@ -1669,6 +1684,9 @@ for cfile in glob.glob(os.path.join(DEST_DIR, '_next/static/chunks/*.js')):
     with open(cfile, 'r', encoding='utf-8') as cf:
         cdata = cf.read()
     changed = False
+    if 'https://github.com/gurination1' in cdata:
+        cdata = cdata.replace('https://github.com/gurination1', 'https://gurdharam.com')
+        changed = True
     if '/aurelius-atelier' in cdata or 'aurelius-atelier' in cdata:
         cdata = cdata.replace('/aurelius-atelier/', f'{BASE_PATH}/')
         cdata = cdata.replace('/aurelius-atelier', f'{BASE_PATH}')
