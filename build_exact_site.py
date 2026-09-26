@@ -922,7 +922,7 @@ RUNTIME_HEAD_INJECTION = f"""
       if (url.includes(oemLogos[i])) return '{BASE_PATH}/assets/logos/' + oemLogos[i];
     }}
     if (url.includes('.svg')) return url;
-    if (url.includes('cdn.sanity.io/images/')) {{
+    if (url.includes('cdn.sanity.io/images/') || url.includes('/images/branders/production/') || url.includes('/images/ed72g2cx/production/')) {{
       const parts = url.split('?')[0].split('/');
       const fname = parts[parts.length - 1];
       if (fname.startsWith('f0a6e2fca6100f88fdb82772f94866e7e7f2628c')) {{
