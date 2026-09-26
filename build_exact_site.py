@@ -825,6 +825,17 @@ RUNTIME_HEAD_INJECTION = f"""
 (function() {{
   window.__BASE_PATH__ = '{BASE_PATH}';
   window.TURBOPACK_CHUNK_BASE_PATH = '{BASE_PATH}/_next/';
+  document.addEventListener('click', function(e) {{
+    var a = e.target.closest('a');
+    if (a) {{
+      var h = a.getAttribute('href');
+      if (h === '#social' || h === '#locations') {{
+        e.preventDefault();
+        e.stopPropagation();
+        return false;
+      }}
+    }}
+  }}, true);
 }})();
 </script>
 <script id="runtime-image-guard">
@@ -1081,6 +1092,75 @@ def replace_branders_logo_and_text(html_str):
     html_str = re.sub(r'\bForge\s+home\b', 'Branders home', html_str)
     html_str = re.sub(r'\bWelcome to Forge\b', 'Welcome to Branders', html_str)
     html_str = re.sub(r'\bForge\b', 'Branders', html_str)
+    
+    html_str = sanitize_forge_credentials(html_str)
+    return html_str
+
+def sanitize_forge_credentials(html_str):
+    # 1. Phone numbers: replace Forge numbers with user requested 62808 34006 / tel:+916280834006
+    html_str = re.sub(r'href=[\"\']tel:\+?44\s*\(?0\)?\s*3330\s*417\s*965[\"\']', 'href="tel:+916280834006"', html_str)
+    html_str = re.sub(r'href=[\"\']tel:\+?443330417965[\"\']', 'href="tel:+916280834006"', html_str)
+    html_str = re.sub(r'href=[\"\']tel:03330417965[\"\']', 'href="tel:+916280834006"', html_str)
+    html_str = re.sub(r'tel:\+?443330417965', 'tel:+916280834006', html_str)
+    html_str = re.sub(r'tel:03330417965', 'tel:+916280834006', html_str)
+    html_str = re.sub(r'tel:3330417965', 'tel:+916280834006', html_str)
+
+    phone_spans = ''.join(f'<span>{c}</span>' for c in '+91\xa062808\xa034006')
+    html_str = re.sub(r'<h3><a href=[\"\']tel:[^\"\']*[\"\']><span>(?:<span>.*?</span>)+</span></a></h3>',
+                      f'<h3><a href="tel:+916280834006"><span>{phone_spans}</span></a></h3>', html_str)
+
+    html_str = html_str.replace('+44(0) 3330 417 965', '+91 62808 34006')
+    html_str = html_str.replace('+44(0)\xa03330\xa0417\xa0965', '+91 62808 34006')
+    html_str = html_str.replace('+44 3330 417 965', '+91 62808 34006')
+    html_str = html_str.replace('0333 0417 965', '+91 62808 34006')
+    html_str = html_str.replace('03330417965', '+91 62808 34006')
+    html_str = html_str.replace('3330417965', '6280834006')
+
+    # 2. Email: scrub all forgeautomotive & wrpdgroup emails -> contact@branders.co.uk
+    html_str = re.sub(r'href=[\"\']mailto:[^\"\']*forgeautomotive[^\"\']*[\"\']', 'href="mailto:contact@branders.co.uk"', html_str)
+    html_str = re.sub(r'href=[\"\']mailto:[^\"\']*wrpdgroup[^\"\']*[\"\']', 'href="mailto:contact@branders.co.uk"', html_str)
+    html_str = re.sub(r'[a-zA-Z0-9._%+-]+@forgeautomotive\.co\.uk', 'contact@branders.co.uk', html_str)
+    html_str = re.sub(r'[a-zA-Z0-9._%+-]+@wrpdgroup\.com', 'contact@branders.co.uk', html_str)
+    html_str = html_str.replace('bookings@wrpdgroup.comTelephone', 'contact@branders.co.uk | Telephone')
+    html_str = html_str.replace('contact@branders.co.ukTelephone', 'contact@branders.co.uk | Telephone')
+    html_str = html_str.replace('builds@forgeautomotive.co.uk', 'contact@branders.co.uk')
+    html_str = html_str.replace('bookings@wrpdgroup.com', 'contact@branders.co.uk')
+    html_str = html_str.replace('info@forgeautomotive.co.uk', 'contact@branders.co.uk')
+    html_str = html_str.replace('alex@forgeautomotive.co.uk', 'contact@branders.co.uk')
+
+    # 3. Social links: LinkedIn, Instagram, Facebook pointing to Forge -> #social with popup prevention
+    html_str = re.sub(r'href=[\"\']https?://(?:www\.)?linkedin\.com/company/forge-automotive-ltd/?[\"\']', 'href="#social" onclick="event.preventDefault(); return false;"', html_str)
+    html_str = re.sub(r'href=[\"\']https?://(?:www\.)?instagram\.com/forgeautomotive/?[\"\']', 'href="#social" onclick="event.preventDefault(); return false;"', html_str)
+    html_str = re.sub(r'href=[\"\']https?://(?:www\.)?facebook\.com/profile\.php\?id=61588925168989/?[\"\']', 'href="#social" onclick="event.preventDefault(); return false;"', html_str)
+    html_str = re.sub(r'https?://(?:www\.)?linkedin\.com/company/forge-automotive-ltd/?', '#social', html_str)
+    html_str = re.sub(r'https?://(?:www\.)?instagram\.com/forgeautomotive/?', '#social', html_str)
+    html_str = re.sub(r'https?://(?:www\.)?facebook\.com/profile\.php\?id=61588925168989/?', '#social', html_str)
+
+    # 4. Map links: Google Maps pins pointing to Forge workshops -> #locations
+    html_str = re.sub(r'href=[\"\']https?://maps\.app\.goo\.gl/NmTzBYkb544jSnia8[\"\']', 'href="#locations" onclick="event.preventDefault(); return false;"', html_str)
+    html_str = re.sub(r'href=[\"\']https?://maps\.app\.goo\.gl/sppHgGfo8j5p6x2LA[\"\']', 'href="#locations" onclick="event.preventDefault(); return false;"', html_str)
+    html_str = re.sub(r'https?://maps\.app\.goo\.gl/[a-zA-Z0-9]+/?', '#locations', html_str)
+
+    # 5. Legal / Corporate WRPD credentials
+    html_str = re.sub(r'The\s+WRPD\s+Group\s+Ltd', 'Branders Ltd', html_str)
+    html_str = re.sub(r'WRPD\s+Group\s+Ltd', 'Branders Ltd', html_str)
+    html_str = re.sub(r'WRPD\s+Group', 'Branders', html_str)
+    html_str = html_str.replace('Unit 5 Overland ParkGelderd RoadGildersomeLeedsWest YorkshireLS27 7FE', 'Branders Atelier, London, United Kingdom')
+    html_str = html_str.replace('Unit 5 Overland Park', 'Branders Atelier')
+    html_str = html_str.replace('Gelderd Road', 'Atelier Way')
+    html_str = html_str.replace('Gildersome', 'London')
+    html_str = html_str.replace('Leeds', 'London')
+    html_str = html_str.replace('LS27 7FE', 'SW1A 1AA')
+    html_str = html_str.replace('LS27\xa07FE', 'SW1A 1AA')
+
+    # 6. Domains & Netlify
+    html_str = html_str.replace('https%3A%2F%2Fforge-automotive.netlify.app%2Fstudio', '')
+    html_str = html_str.replace('https://forge-automotive.netlify.app/studio', '')
+    html_str = html_str.replace('https://forge-automotive.netlify.app', '')
+    html_str = html_str.replace('https://forgeautomotive.co.uk/', f'https://gurination1.github.io{BASE_PATH}/')
+    html_str = html_str.replace('https://forgeautomotive.co.uk', f'https://gurination1.github.io{BASE_PATH}')
+    html_str = html_str.replace('https://cdn.forgeautomotive.media/', f'{BASE_PATH}/assets/videos/')
+
     return html_str
 
 COPYWRITING_REPLACEMENTS = [
@@ -1437,15 +1517,37 @@ patch_logo_in_chunk(
     os.path.join(DEST_DIR, 'original_3dc.js')
 )
 
-# Sanitize all chunks to ensure BASE_PATH (/branders) is used consistently
+# Sanitize all chunks to ensure BASE_PATH (/branders) and clean credentials
 import glob
 for cfile in glob.glob(os.path.join(DEST_DIR, '_next/static/chunks/*.js')):
     with open(cfile, 'r', encoding='utf-8') as cf:
         cdata = cf.read()
+    changed = False
     if '/aurelius-atelier' in cdata or 'aurelius-atelier' in cdata:
         cdata = cdata.replace('/aurelius-atelier/', f'{BASE_PATH}/')
         cdata = cdata.replace('/aurelius-atelier', f'{BASE_PATH}')
         cdata = cdata.replace('aurelius-atelier', 'branders')
+        changed = True
+    if 'LS27 7FE' in cdata:
+        cdata = cdata.replace('LS27 7FE', 'SW1A 1AA')
+        changed = True
+    if 'forge-automotive.netlify.app' in cdata:
+        cdata = cdata.replace('https://forge-automotive.netlify.app/studio', f'https://gurination1.github.io{BASE_PATH}')
+        cdata = cdata.replace('https://forge-automotive.netlify.app', f'https://gurination1.github.io{BASE_PATH}')
+        cdata = cdata.replace('forge-automotive.netlify.app', f'gurination1.github.io{BASE_PATH}')
+        changed = True
+    if '+443330417965' in cdata or '03330417965' in cdata or '3330417965' in cdata:
+        cdata = cdata.replace('+443330417965', '+916280834006')
+        cdata = cdata.replace('03330417965', '+916280834006')
+        cdata = cdata.replace('3330417965', '6280834006')
+        changed = True
+    if 'builds@forgeautomotive.co.uk' in cdata:
+        cdata = cdata.replace('builds@forgeautomotive.co.uk', 'contact@branders.co.uk')
+        changed = True
+    if 'bookings@wrpdgroup.com' in cdata:
+        cdata = cdata.replace('bookings@wrpdgroup.com', 'contact@branders.co.uk')
+        changed = True
+    if changed:
         with open(cfile, 'w', encoding='utf-8') as cf:
             cf.write(cdata)
 
