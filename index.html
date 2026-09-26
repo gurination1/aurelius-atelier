@@ -111,23 +111,20 @@
     return origSetAttr.call(this, name, val);
   };
 
-  let creditsCleaned = false;
   function cleanCredits() {
-    if (creditsCleaned) return;
     const powered = document.querySelectorAll('[data-name="powered"], a[aria-label="Navigate to WRPD"]');
-    let found = false;
     powered.forEach(function(el) {
       const a = el.tagName === 'A' ? el : el.querySelector('a');
-      if (a) {
-        found = true;
+      if (a && a.textContent !== 'Made by Gurdharam') {
         a.href = 'https://github.com/gurination1';
         a.setAttribute('aria-label', 'Made by Gurdharam');
         a.textContent = 'Made by Gurdharam';
       }
     });
     const siteby = document.querySelectorAll('[data-name="siteby"]');
-    siteby.forEach(function(el) { el.style.display = 'none'; });
-    if (found) creditsCleaned = true;
+    siteby.forEach(function(el) {
+      if (el.style.display !== 'none') el.style.display = 'none';
+    });
   }
 
   function fixImageLoaded(img) {
@@ -140,6 +137,18 @@
     }
   }
 
+  // Mini site state sync and click-to-close handler
+  function updateMenuState() {
+    const trigger = document.querySelector('button[aria-controls="site-menu"]');
+    const isOpen = trigger && trigger.getAttribute('aria-expanded') === 'true';
+    if (document.documentElement) {
+      document.documentElement.classList.toggle('site-menu-open', !!isOpen);
+    }
+    if (document.body) {
+      document.body.classList.toggle('site-menu-open', !!isOpen);
+    }
+  }
+
   document.addEventListener('load', function(e) {
     if (e.target && e.target.tagName === 'IMG') {
       cleanImg(e.target);
@@ -148,45 +157,87 @@
   }, true);
 
   if (typeof MutationObserver !== 'undefined') {
-    const imgObserver = new MutationObserver((mutations) => {
+    const observer = new MutationObserver((mutations) => {
+      let hasAddedNodes = false;
+      let hasAttrChange = false;
       mutations.forEach(m => {
-        m.addedNodes.forEach(node => {
-          if (node.tagName === 'IMG') {
-            cleanImg(node);
-            fixImageLoaded(node);
-          } else if (node.querySelectorAll) {
-            node.querySelectorAll('img').forEach(img => {
-              cleanImg(img);
-              fixImageLoaded(img);
-            });
-          }
-        });
+        if (m.type === 'childList' && m.addedNodes.length > 0) {
+          hasAddedNodes = true;
+          m.addedNodes.forEach(node => {
+            if (node.tagName === 'IMG') {
+              cleanImg(node);
+              fixImageLoaded(node);
+            } else if (node.querySelectorAll) {
+              node.querySelectorAll('img').forEach(img => {
+                cleanImg(img);
+                fixImageLoaded(img);
+              });
+            }
+          });
+        } else if (m.type === 'attributes') {
+          hasAttrChange = true;
+        }
       });
+      if (hasAttrChange) updateMenuState();
+      if (hasAddedNodes) cleanCredits();
     });
-    imgObserver.observe(document.documentElement, { childList: true, subtree: true });
+    observer.observe(document.documentElement, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ['aria-expanded']
+    });
   }
 
+  document.addEventListener('click', function(e) {
+    const triggerBtn = e.target.closest('button[aria-controls="site-menu"]');
+    if (triggerBtn) {
+      setTimeout(updateMenuState, 20);
+      setTimeout(updateMenuState, 150);
+      setTimeout(cleanCredits, 150);
+      return;
+    }
+
+    const isOpen = document.documentElement.classList.contains('site-menu-open');
+    if (!isOpen) return;
+
+    const trigger = document.querySelector('button[aria-controls="site-menu"]');
+    if (!trigger) return;
+
+    const siteMenu = document.getElementById('site-menu');
+    const isInteractiveMenuClick = siteMenu && siteMenu.contains(e.target) && (e.target.closest('a') || e.target.closest('button'));
+    if (isInteractiveMenuClick) return;
+
+    // Click on mini preview card or menu backdrop -> close menu
+    e.preventDefault();
+    e.stopPropagation();
+    trigger.click();
+    setTimeout(updateMenuState, 50);
+  }, true);
+
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape' && document.documentElement.classList.contains('site-menu-open')) {
+      const trigger = document.querySelector('button[aria-controls="site-menu"]');
+      if (trigger) {
+        trigger.click();
+        setTimeout(updateMenuState, 50);
+      }
+    }
+  });
+
   setInterval(() => {
-    document.querySelectorAll('img').forEach(img => {
-      cleanImg(img);
-      fixImageLoaded(img);
-    });
-  }, 250);
+    cleanCredits();
+    updateMenuState();
+  }, 1000);
 
   document.addEventListener('DOMContentLoaded', function() {
-    document.querySelectorAll('img').forEach(function(img) {
-      cleanImg(img);
-      fixImageLoaded(img);
-    });
     cleanCredits();
+    updateMenuState();
   });
 
   window.addEventListener('load', function() {
-    document.querySelectorAll('img').forEach(function(img) {
-      cleanImg(img);
-      fixImageLoaded(img);
-    });
     cleanCredits();
+    updateMenuState();
   });
 })();
 </script>
@@ -1576,6 +1627,72 @@ section.sc-3a017878-0,
 .sc-d3167531-0,
 div[data-name="jacket"] {
   background-color: #000000 !important;
+}
+
+/* Mini site preview when menu is open */
+html.site-menu-open main#page,
+body.site-menu-open main#page {
+  clip-path: none !important;
+  scale: 0.52 !important;
+  opacity: 0.55 !important;
+  border-radius: 16px !important;
+  border: 1px solid rgba(255, 255, 255, 0.18) !important;
+  box-shadow: 0 30px 100px rgba(0, 0, 0, 0.95), 0 0 40px rgba(0, 0, 0, 0.7) !important;
+  pointer-events: auto !important;
+  cursor: pointer !important;
+  transform-origin: center center !important;
+  transition: scale 0.8s cubic-bezier(0.16, 1, 0.3, 1),
+              opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1),
+              border-radius 0.8s cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 0.8s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+html:not(.site-menu-open) main#page,
+body:not(.site-menu-open) main#page {
+  transition: scale 0.6s cubic-bezier(0.16, 1, 0.3, 1),
+              opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1),
+              border-radius 0.6s cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 0.6s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+/* Ensure menu overlay floats in front with semi-transparent backdrop */
+nav#site-menu {
+  z-index: 2 !important;
+  background: rgba(10, 10, 10, 0.45) !important;
+  backdrop-filter: blur(4px) !important;
+  -webkit-backdrop-filter: blur(4px) !important;
+}
+
+/* Position Made by Gurdharam in opposite bottom corner to copyright */
+nav#site-menu [data-name="powered"] {
+  position: absolute !important;
+  bottom: 0 !important;
+  right: var(--offset, 4rem) !important;
+  left: auto !important;
+  text-align: right !important;
+  margin: 0 !important;
+}
+
+nav#site-menu [data-name="copyright"] {
+  position: absolute !important;
+  bottom: 0 !important;
+  left: var(--offset, 4rem) !important;
+  right: auto !important;
+  text-align: left !important;
+  margin: 0 !important;
+}
+
+@media (max-width: 768px) {
+  html.site-menu-open main#page {
+    scale: 0.58 !important;
+    border-radius: 12px !important;
+  }
+  nav#site-menu [data-name="powered"] {
+    right: 2rem !important;
+  }
+  nav#site-menu [data-name="copyright"] {
+    left: 2rem !important;
+  }
 }
 </style>
 

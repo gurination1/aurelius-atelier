@@ -520,6 +520,72 @@ section.sc-3a017878-0,
 div[data-name="jacket"] {{
   background-color: #000000 !important;
 }}
+
+/* Mini site preview when menu is open */
+html.site-menu-open main#page,
+body.site-menu-open main#page {{
+  clip-path: none !important;
+  scale: 0.52 !important;
+  opacity: 0.55 !important;
+  border-radius: 16px !important;
+  border: 1px solid rgba(255, 255, 255, 0.18) !important;
+  box-shadow: 0 30px 100px rgba(0, 0, 0, 0.95), 0 0 40px rgba(0, 0, 0, 0.7) !important;
+  pointer-events: auto !important;
+  cursor: pointer !important;
+  transform-origin: center center !important;
+  transition: scale 0.8s cubic-bezier(0.16, 1, 0.3, 1),
+              opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1),
+              border-radius 0.8s cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 0.8s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}}
+
+html:not(.site-menu-open) main#page,
+body:not(.site-menu-open) main#page {{
+  transition: scale 0.6s cubic-bezier(0.16, 1, 0.3, 1),
+              opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1),
+              border-radius 0.6s cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 0.6s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}}
+
+/* Ensure menu overlay floats in front with semi-transparent backdrop */
+nav#site-menu {{
+  z-index: 2 !important;
+  background: rgba(10, 10, 10, 0.45) !important;
+  backdrop-filter: blur(4px) !important;
+  -webkit-backdrop-filter: blur(4px) !important;
+}}
+
+/* Position Made by Gurdharam in opposite bottom corner to copyright */
+nav#site-menu [data-name="powered"] {{
+  position: absolute !important;
+  bottom: 0 !important;
+  right: var(--offset, 4rem) !important;
+  left: auto !important;
+  text-align: right !important;
+  margin: 0 !important;
+}}
+
+nav#site-menu [data-name="copyright"] {{
+  position: absolute !important;
+  bottom: 0 !important;
+  left: var(--offset, 4rem) !important;
+  right: auto !important;
+  text-align: left !important;
+  margin: 0 !important;
+}}
+
+@media (max-width: 768px) {{
+  html.site-menu-open main#page {{
+    scale: 0.58 !important;
+    border-radius: 12px !important;
+  }}
+  nav#site-menu [data-name="powered"] {{
+    right: 2rem !important;
+  }}
+  nav#site-menu [data-name="copyright"] {{
+    left: 2rem !important;
+  }}
+}}
 </style>
 """
 
@@ -636,23 +702,20 @@ RUNTIME_HEAD_INJECTION = f"""
     return origSetAttr.call(this, name, val);
   }};
 
-  let creditsCleaned = false;
   function cleanCredits() {{
-    if (creditsCleaned) return;
     const powered = document.querySelectorAll('[data-name="powered"], a[aria-label="Navigate to WRPD"]');
-    let found = false;
     powered.forEach(function(el) {{
       const a = el.tagName === 'A' ? el : el.querySelector('a');
-      if (a) {{
-        found = true;
+      if (a && a.textContent !== 'Made by Gurdharam') {{
         a.href = 'https://github.com/gurination1';
         a.setAttribute('aria-label', 'Made by Gurdharam');
         a.textContent = 'Made by Gurdharam';
       }}
     }});
     const siteby = document.querySelectorAll('[data-name="siteby"]');
-    siteby.forEach(function(el) {{ el.style.display = 'none'; }});
-    if (found) creditsCleaned = true;
+    siteby.forEach(function(el) {{
+      if (el.style.display !== 'none') el.style.display = 'none';
+    }});
   }}
 
   function fixImageLoaded(img) {{
@@ -665,6 +728,18 @@ RUNTIME_HEAD_INJECTION = f"""
     }}
   }}
 
+  // Mini site state sync and click-to-close handler
+  function updateMenuState() {{
+    const trigger = document.querySelector('button[aria-controls="site-menu"]');
+    const isOpen = trigger && trigger.getAttribute('aria-expanded') === 'true';
+    if (document.documentElement) {{
+      document.documentElement.classList.toggle('site-menu-open', !!isOpen);
+    }}
+    if (document.body) {{
+      document.body.classList.toggle('site-menu-open', !!isOpen);
+    }}
+  }}
+
   document.addEventListener('load', function(e) {{
     if (e.target && e.target.tagName === 'IMG') {{
       cleanImg(e.target);
@@ -673,45 +748,87 @@ RUNTIME_HEAD_INJECTION = f"""
   }}, true);
 
   if (typeof MutationObserver !== 'undefined') {{
-    const imgObserver = new MutationObserver((mutations) => {{
+    const observer = new MutationObserver((mutations) => {{
+      let hasAddedNodes = false;
+      let hasAttrChange = false;
       mutations.forEach(m => {{
-        m.addedNodes.forEach(node => {{
-          if (node.tagName === 'IMG') {{
-            cleanImg(node);
-            fixImageLoaded(node);
-          }} else if (node.querySelectorAll) {{
-            node.querySelectorAll('img').forEach(img => {{
-              cleanImg(img);
-              fixImageLoaded(img);
-            }});
-          }}
-        }});
+        if (m.type === 'childList' && m.addedNodes.length > 0) {{
+          hasAddedNodes = true;
+          m.addedNodes.forEach(node => {{
+            if (node.tagName === 'IMG') {{
+              cleanImg(node);
+              fixImageLoaded(node);
+            }} else if (node.querySelectorAll) {{
+              node.querySelectorAll('img').forEach(img => {{
+                cleanImg(img);
+                fixImageLoaded(img);
+              }});
+            }}
+          }});
+        }} else if (m.type === 'attributes') {{
+          hasAttrChange = true;
+        }}
       }});
+      if (hasAttrChange) updateMenuState();
+      if (hasAddedNodes) cleanCredits();
     }});
-    imgObserver.observe(document.documentElement, {{ childList: true, subtree: true }});
+    observer.observe(document.documentElement, {{
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ['aria-expanded']
+    }});
   }}
 
+  document.addEventListener('click', function(e) {{
+    const triggerBtn = e.target.closest('button[aria-controls="site-menu"]');
+    if (triggerBtn) {{
+      setTimeout(updateMenuState, 20);
+      setTimeout(updateMenuState, 150);
+      setTimeout(cleanCredits, 150);
+      return;
+    }}
+
+    const isOpen = document.documentElement.classList.contains('site-menu-open');
+    if (!isOpen) return;
+
+    const trigger = document.querySelector('button[aria-controls="site-menu"]');
+    if (!trigger) return;
+
+    const siteMenu = document.getElementById('site-menu');
+    const isInteractiveMenuClick = siteMenu && siteMenu.contains(e.target) && (e.target.closest('a') || e.target.closest('button'));
+    if (isInteractiveMenuClick) return;
+
+    // Click on mini preview card or menu backdrop -> close menu
+    e.preventDefault();
+    e.stopPropagation();
+    trigger.click();
+    setTimeout(updateMenuState, 50);
+  }}, true);
+
+  document.addEventListener('keydown', function(e) {{
+    if (e.key === 'Escape' && document.documentElement.classList.contains('site-menu-open')) {{
+      const trigger = document.querySelector('button[aria-controls="site-menu"]');
+      if (trigger) {{
+        trigger.click();
+        setTimeout(updateMenuState, 50);
+      }}
+    }}
+  }});
+
   setInterval(() => {{
-    document.querySelectorAll('img').forEach(img => {{
-      cleanImg(img);
-      fixImageLoaded(img);
-    }});
-  }}, 250);
+    cleanCredits();
+    updateMenuState();
+  }}, 1000);
 
   document.addEventListener('DOMContentLoaded', function() {{
-    document.querySelectorAll('img').forEach(function(img) {{
-      cleanImg(img);
-      fixImageLoaded(img);
-    }});
     cleanCredits();
+    updateMenuState();
   }});
 
   window.addEventListener('load', function() {{
-    document.querySelectorAll('img').forEach(function(img) {{
-      cleanImg(img);
-      fixImageLoaded(img);
-    }});
     cleanCredits();
+    updateMenuState();
   }});
 }})();
 </script>
@@ -801,7 +918,7 @@ if os.path.exists(turbo_path):
         f.write(t_code)
     print("Patched turbopack chunk base path")
 
-# Menu credits update: replace Powered by WRPD with Made by Gurdharam
+# Menu credits update: replace Powered by WRPD with Made by Gurdharam and position in opposite corner
 menu_chunk_path = os.path.join(DEST_DIR, '_next/static/chunks/40ga6wtcxfway.js')
 if os.path.exists(menu_chunk_path):
     with open(menu_chunk_path, 'r', encoding='utf-8') as f:
@@ -813,11 +930,27 @@ if os.path.exists(menu_chunk_path):
             target_end += len(',r[2]=n):n=r[2],n')
             new_credits = 'r[1]===Symbol.for("react.memo_cache_sentinel")?(a=(0,t.jsx)("p",{"data-name":"powered",children:(0,t.jsx)("a",{href:"https://github.com/gurination1",target:"_blank",rel:"noopener noreferrer","aria-label":"Made by Gurdharam",children:"Made by Gurdharam"})}),r[1]=a):a=r[1],r[2]===Symbol.for("react.memo_cache_sentinel")?(n=(0,t.jsxs)(y,{children:[e,a]}),r[2]=n):n=r[2],n'
             m_code = m_code[:target_start] + new_credits + m_code[target_end:]
-            with open(menu_chunk_path, 'w', encoding='utf-8') as f:
-                f.write(m_code)
-            print("Patched menu chunk: Made by Gurdharam")
+    m_code = m_code.replace('z-index: 0;\n        background: ${(0,p.getBrand)("bc3")};',
+                            'z-index: 2;\n        background: rgba(10, 10, 10, 0.45);\n        backdrop-filter: blur(4px);\n        -webkit-backdrop-filter: blur(4px);')
+    m_code = m_code.replace("[data-name='powered'] a{",
+                            "[data-name='powered'] { position: absolute; bottom: 0; right: var(--offset); text-align: right; margin: 0; } [data-name='powered'] a{")
+    with open(menu_chunk_path, 'w', encoding='utf-8') as f:
+        f.write(m_code)
+    print("Patched menu chunk: Made by Gurdharam in opposite corner & backdrop")
 
-# Restore authentic preloader chunk from original_414.js and patch scrollerProxy & route scroll reset
+menu_chunk_path_alt = os.path.join(DEST_DIR, '_next/static/chunks/1o6f75j2bh32_.js')
+if os.path.exists(menu_chunk_path_alt):
+    with open(menu_chunk_path_alt, 'r', encoding='utf-8') as f:
+        m_alt = f.read()
+    m_alt = m_alt.replace('z-index: 0;\n        background: ${(0,u.getBrand)("bc3")};',
+                          'z-index: 2;\n        background: rgba(10, 10, 10, 0.45);\n        backdrop-filter: blur(4px);\n        -webkit-backdrop-filter: blur(4px);')
+    m_alt = m_alt.replace("[data-name='powered'] a{",
+                          "[data-name='powered'] { position: absolute; bottom: 0; right: var(--offset); text-align: right; margin: 0; } [data-name='powered'] a{")
+    with open(menu_chunk_path_alt, 'w', encoding='utf-8') as f:
+        f.write(m_alt)
+    print("Patched alt menu chunk: opposite corner credits & backdrop")
+
+# Restore authentic preloader chunk from original_414.js and patch scrollerProxy, route scroll reset & mini site preview
 original_414_path = os.path.join(DEST_DIR, 'original_414.js')
 preloader_chunk_path = os.path.join(DEST_DIR, '_next/static/chunks/414eipoaws2vq.js')
 if os.path.exists(original_414_path):
@@ -830,9 +963,19 @@ if os.path.exists(original_414_path):
     # 2. Prevent route-reset hook from jumping to top on initial mount or re-mount
     p_code = p_code.replace('if(!e||r.current===t)return;r.current=t,',
                             'if(!e||r.current===t||null===r.current){r.current=t;return;}r.current=t,')
+    # 3. Mini site preview when menu is open: remove clip-path inset(50%), scale 0.52, rounded corners, box-shadow, opacity
+    p_code = p_code.replace('clip-path: inset(${50*!!e}%);',
+                            'clip-path: none; border-radius: ${e?"16px":"0px"}; box-shadow: ${e?"0 30px 100px rgba(0,0,0,0.95), 0 0 40px rgba(0,0,0,0.7)":"none"}; border: ${e?"1px solid rgba(255,255,255,0.18)":"1px solid transparent"}; opacity: ${e?0.55:1}; transform-origin: center center;')
+    p_code = p_code.replace('scale: ${e?.5:1};', 'scale: ${e?.52:1};')
+    p_code = p_code.replace('y.current?.toggleAttribute("inert",b||h)', 'y.current?.toggleAttribute("inert",b)')
+    # 4. Recognize subpath /aurelius-atelier as homepage for Loader and SmoothScroll
+    p_code = p_code.replace('F="/"===(0,p.usePathname)()', 'F=["/","/aurelius-atelier","/aurelius-atelier/"].includes((0,p.usePathname)())')
+    p_code = p_code.replace('x="/"===f&&!p', 'x=(["/","/aurelius-atelier","/aurelius-atelier/"].includes(f))&&!p')
+    # 5. Ensure preloader completes reliably once cinematic text completes
+    p_code = p_code.replace('Y=(F?K&&(!M||R):J)&&B', 'Y=B')
     with open(preloader_chunk_path, 'w', encoding='utf-8') as f:
         f.write(p_code)
-    print("Patched 414 chunk: prevented ScrollTrigger refresh & remount from resetting scroll to 0")
+    print("Patched 414 chunk: scroll reset, mini site preview, subpath homepage & reliable preloader")
 
 # Hero background chunk update: 50ms ActiveFrame timeout & persistent background container
 hero_chunk_path = os.path.join(DEST_DIR, '_next/static/chunks/43lg5uv8_am8v.js')
@@ -841,9 +984,10 @@ if os.path.exists(hero_chunk_path):
         h_code = f.read()
     h_code = h_code.replace(',"unsupported"===ed||"error"===ed)?null:', ',!1)?null:')
     h_code = h_code.replace('waitForActiveFrameRuntime)(t.signal),2e4,', 'waitForActiveFrameRuntime)(t.signal),50,')
+    h_code = h_code.replace('r.loading,2e4,', 'r.loading,100,')
     with open(hero_chunk_path, 'w', encoding='utf-8') as f:
         f.write(h_code)
-    print("Patched hero chunk: 50ms ActiveFrame timeout and persistent background container")
+    print("Patched hero chunk: 50ms ActiveFrame timeout, 100ms loading timeout & persistent container")
 
 # React framework chunk update: error 418 hydration crash & safe insertBefore DOM patch
 framework_chunk_path = os.path.join(DEST_DIR, '_next/static/chunks/0-4srap-ffvu1.js')

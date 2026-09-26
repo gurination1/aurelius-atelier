@@ -111,23 +111,20 @@
     return origSetAttr.call(this, name, val);
   };
 
-  let creditsCleaned = false;
   function cleanCredits() {
-    if (creditsCleaned) return;
     const powered = document.querySelectorAll('[data-name="powered"], a[aria-label="Navigate to WRPD"]');
-    let found = false;
     powered.forEach(function(el) {
       const a = el.tagName === 'A' ? el : el.querySelector('a');
-      if (a) {
-        found = true;
+      if (a && a.textContent !== 'Made by Gurdharam') {
         a.href = 'https://github.com/gurination1';
         a.setAttribute('aria-label', 'Made by Gurdharam');
         a.textContent = 'Made by Gurdharam';
       }
     });
     const siteby = document.querySelectorAll('[data-name="siteby"]');
-    siteby.forEach(function(el) { el.style.display = 'none'; });
-    if (found) creditsCleaned = true;
+    siteby.forEach(function(el) {
+      if (el.style.display !== 'none') el.style.display = 'none';
+    });
   }
 
   function fixImageLoaded(img) {
@@ -140,6 +137,18 @@
     }
   }
 
+  // Mini site state sync and click-to-close handler
+  function updateMenuState() {
+    const trigger = document.querySelector('button[aria-controls="site-menu"]');
+    const isOpen = trigger && trigger.getAttribute('aria-expanded') === 'true';
+    if (document.documentElement) {
+      document.documentElement.classList.toggle('site-menu-open', !!isOpen);
+    }
+    if (document.body) {
+      document.body.classList.toggle('site-menu-open', !!isOpen);
+    }
+  }
+
   document.addEventListener('load', function(e) {
     if (e.target && e.target.tagName === 'IMG') {
       cleanImg(e.target);
@@ -148,45 +157,87 @@
   }, true);
 
   if (typeof MutationObserver !== 'undefined') {
-    const imgObserver = new MutationObserver((mutations) => {
+    const observer = new MutationObserver((mutations) => {
+      let hasAddedNodes = false;
+      let hasAttrChange = false;
       mutations.forEach(m => {
-        m.addedNodes.forEach(node => {
-          if (node.tagName === 'IMG') {
-            cleanImg(node);
-            fixImageLoaded(node);
-          } else if (node.querySelectorAll) {
-            node.querySelectorAll('img').forEach(img => {
-              cleanImg(img);
-              fixImageLoaded(img);
-            });
-          }
-        });
+        if (m.type === 'childList' && m.addedNodes.length > 0) {
+          hasAddedNodes = true;
+          m.addedNodes.forEach(node => {
+            if (node.tagName === 'IMG') {
+              cleanImg(node);
+              fixImageLoaded(node);
+            } else if (node.querySelectorAll) {
+              node.querySelectorAll('img').forEach(img => {
+                cleanImg(img);
+                fixImageLoaded(img);
+              });
+            }
+          });
+        } else if (m.type === 'attributes') {
+          hasAttrChange = true;
+        }
       });
+      if (hasAttrChange) updateMenuState();
+      if (hasAddedNodes) cleanCredits();
     });
-    imgObserver.observe(document.documentElement, { childList: true, subtree: true });
+    observer.observe(document.documentElement, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ['aria-expanded']
+    });
   }
 
+  document.addEventListener('click', function(e) {
+    const triggerBtn = e.target.closest('button[aria-controls="site-menu"]');
+    if (triggerBtn) {
+      setTimeout(updateMenuState, 20);
+      setTimeout(updateMenuState, 150);
+      setTimeout(cleanCredits, 150);
+      return;
+    }
+
+    const isOpen = document.documentElement.classList.contains('site-menu-open');
+    if (!isOpen) return;
+
+    const trigger = document.querySelector('button[aria-controls="site-menu"]');
+    if (!trigger) return;
+
+    const siteMenu = document.getElementById('site-menu');
+    const isInteractiveMenuClick = siteMenu && siteMenu.contains(e.target) && (e.target.closest('a') || e.target.closest('button'));
+    if (isInteractiveMenuClick) return;
+
+    // Click on mini preview card or menu backdrop -> close menu
+    e.preventDefault();
+    e.stopPropagation();
+    trigger.click();
+    setTimeout(updateMenuState, 50);
+  }, true);
+
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape' && document.documentElement.classList.contains('site-menu-open')) {
+      const trigger = document.querySelector('button[aria-controls="site-menu"]');
+      if (trigger) {
+        trigger.click();
+        setTimeout(updateMenuState, 50);
+      }
+    }
+  });
+
   setInterval(() => {
-    document.querySelectorAll('img').forEach(img => {
-      cleanImg(img);
-      fixImageLoaded(img);
-    });
-  }, 250);
+    cleanCredits();
+    updateMenuState();
+  }, 1000);
 
   document.addEventListener('DOMContentLoaded', function() {
-    document.querySelectorAll('img').forEach(function(img) {
-      cleanImg(img);
-      fixImageLoaded(img);
-    });
     cleanCredits();
+    updateMenuState();
   });
 
   window.addEventListener('load', function() {
-    document.querySelectorAll('img').forEach(function(img) {
-      cleanImg(img);
-      fixImageLoaded(img);
-    });
     cleanCredits();
+    updateMenuState();
   });
 })();
 </script>
