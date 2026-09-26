@@ -51,16 +51,16 @@ OEM_SVGS = {
 
 def map_sanity_file(fname):
     if fname.endswith('.svg') or fname in OEM_SVGS:
-        return None # Preserve OEM partner logo
+        return ('logo', fname)
     if fname in IMAGE_MAP:
-        return IMAGE_MAP[fname]
+        return ('car', IMAGE_MAP[fname])
     h = fname[:40]
     if h in IMAGE_MAP:
-        return IMAGE_MAP[h]
+        return ('car', IMAGE_MAP[h])
     if '4d877ce34' in fname:
-        return '4d877ce34bbd3354636fb32f4d5f944e2487c8b4-512x512.png'
+        return ('car', '4d877ce34bbd3354636fb32f4d5f944e2487c8b4-512x512.png')
     if 'd7577b4b' in fname:
-        return 'd7577b4b9f6a6acda5594e9e6171678dba58e133-1200x630.jpg'
+        return ('car', 'd7577b4b9f6a6acda5594e9e6171678dba58e133-1200x630.jpg')
     return None
 
 sanity_pattern = re.compile(r'https?://cdn\.sanity\.io/images/[^/]+/production/([a-zA-Z0-9_\-\.]+)(?:\\u[0-9a-fA-F]{4}|[^\s"\'<>\\])*')
@@ -69,8 +69,11 @@ def sanity_replacer(match):
     fname = match.group(1)
     mapped = map_sanity_file(fname)
     if mapped is None:
-        return match.group(0) # Keep OEM partner logo untouched
-    return f"{BASE_PATH}/assets/cars/{mapped}"
+        return match.group(0)
+    folder, path = mapped
+    if folder == 'logo':
+        return f"{BASE_PATH}/assets/logos/{path}"
+    return f"{BASE_PATH}/assets/cars/{path}"
 
 # Exact 2-Video Scroll Blend Engine (Non-looping intro + Lenis-aware scroll scrub)
 HERO_BLEND_ENGINE = f"""
@@ -825,22 +828,85 @@ RUNTIME_HEAD_INJECTION = f"""
 (function() {{
   window.__BASE_PATH__ = '{BASE_PATH}';
   window.TURBOPACK_CHUNK_BASE_PATH = '{BASE_PATH}/_next/';
+
+  // 1. Silent fetch interceptor for static host: prevent _rsc and sanity.io network hits
   const origFetch = window.fetch;
   window.fetch = function(resource, init) {{
     const url = typeof resource === 'string' ? resource : (resource && resource.url ? resource.url : '');
-    if (url && url.includes('_rsc=')) {{
-      return Promise.reject(new TypeError('Failed to fetch'));
+    if (url && (url.includes('_rsc=') || url.includes('sanity.io'))) {{
+      if (url.includes('api.sanity.io')) {{
+        return Promise.resolve(new Response('{{}}', {{ status: 200, headers: {{ 'Content-Type': 'application/json' }} }}));
+      }}
+      return new Promise(function() {{}}); // never errors, never hits network
     }}
     return origFetch.apply(this, arguments);
   }};
+
+  // 2. Neutralize EventSource for Sanity Live
+  if (typeof window.EventSource !== 'undefined') {{
+    const OrigEventSource = window.EventSource;
+    window.EventSource = function(url, options) {{
+      if (typeof url === 'string' && url.includes('sanity.io')) {{
+        return {{
+          addEventListener: function() {{}},
+          removeEventListener: function() {{}},
+          close: function() {{}},
+          dispatchEvent: function() {{ return false; }}
+        }};
+      }}
+      return new OrigEventSource(url, options);
+    }};
+  }}
+
+  // 3. Block DOM injection of speculative prefetch/preload links for _rsc or sanity.io
+  const origAppend = Node.prototype.appendChild;
+  Node.prototype.appendChild = function(node) {{
+    if (node && node.nodeName === 'LINK') {{
+      const h = node.getAttribute('href') || node.href || '';
+      if (h.includes('_rsc=') || h.includes('sanity.io')) {{
+        return node;
+      }}
+    }}
+    return origAppend.apply(this, arguments);
+  }};
+  const origInsertBefore = Node.prototype.insertBefore;
+  Node.prototype.insertBefore = function(node, ref) {{
+    if (node && node.nodeName === 'LINK') {{
+      const h = node.getAttribute('href') || node.href || '';
+      if (h.includes('_rsc=') || h.includes('sanity.io')) {{
+        return node;
+      }}
+    }}
+    return origInsertBefore.apply(this, arguments);
+  }};
+
+  // 4. Capture-phase navigation and popup neutralization
   document.addEventListener('click', function(e) {{
     var a = e.target.closest('a');
-    if (a) {{
-      var h = a.getAttribute('href');
-      if (h === '#social' || h === '#locations') {{
-        e.preventDefault();
-        e.stopPropagation();
-        return false;
+    if (!a) return;
+    var h = a.getAttribute('href');
+    if (!h) return;
+    if (h === '#social' || h === '#locations') {{
+      e.preventDefault();
+      e.stopPropagation();
+      return false;
+    }}
+    // Static internal navigation without broken RSC stalls
+    if (h.startsWith('/branders') || h.startsWith('./') || (h.startsWith('/') && !h.startsWith('//'))) {{
+      if (!e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey && e.button === 0) {{
+        var targetUrl = a.href;
+        if (targetUrl && targetUrl !== window.location.href && !targetUrl.endsWith('#')) {{
+          e.preventDefault();
+          e.stopPropagation();
+          if (document.startViewTransition) {{
+            document.startViewTransition(function() {{
+              window.location.href = targetUrl;
+            }});
+          }} else {{
+            window.location.href = targetUrl;
+          }}
+          return false;
+        }}
       }}
     }}
   }}, true);
@@ -849,9 +915,13 @@ RUNTIME_HEAD_INJECTION = f"""
 <script id="runtime-image-guard">
 (function() {{
   const imgMap = {json.dumps(IMAGE_MAP)};
+  const oemLogos = {json.dumps(list(OEM_SVGS))};
   function rewriteUrl(url) {{
     if (!url || typeof url !== 'string') return url;
-    if (url.includes('.svg')) return url; // NEVER TOUCH OEM SVGS
+    for (let i = 0; i < oemLogos.length; i++) {{
+      if (url.includes(oemLogos[i])) return '{BASE_PATH}/assets/logos/' + oemLogos[i];
+    }}
+    if (url.includes('.svg')) return url;
     if (url.includes('cdn.sanity.io/images/')) {{
       const parts = url.split('?')[0].split('/');
       const fname = parts[parts.length - 1];
@@ -1167,7 +1237,18 @@ def sanitize_forge_credentials(html_str):
     html_str = html_str.replace('https://forge-automotive.netlify.app', '')
     html_str = html_str.replace('https://forgeautomotive.co.uk/', f'https://gurination1.github.io{BASE_PATH}/')
     html_str = html_str.replace('https://forgeautomotive.co.uk', f'https://gurination1.github.io{BASE_PATH}')
+    html_str = html_str.replace('https://cdn.forgeautomotive.media/files/ed72g2cx/production/', f'{BASE_PATH}/assets/videos/')
     html_str = html_str.replace('https://cdn.forgeautomotive.media/', f'{BASE_PATH}/assets/videos/')
+    html_str = html_str.replace(f'{BASE_PATH}/assets/videos/files/ed72g2cx/production/', f'{BASE_PATH}/assets/videos/')
+    html_str = html_str.replace('files/ed72g2cx/production/', '')
+    html_str = html_str.replace('https://ed72g2cx.api.sanity.io', f'https://gurination1.github.io{BASE_PATH}')
+    html_str = html_str.replace('https:\\/\\/ed72g2cx.api.sanity.io', f'https:\\/\\/gurination1.github.io{BASE_PATH}')
+    html_str = html_str.replace('ed72g2cx.api.sanity.io', f'gurination1.github.io{BASE_PATH}')
+    html_str = html_str.replace('ed72g2cx', 'branders')
+    html_str = html_str.replace('<link rel="preconnect" href="https://cdn.sanity.io"/>', '')
+    html_str = html_str.replace('<link rel="dns-prefetch" href="https://cdn.sanity.io"/>', '')
+    html_str = html_str.replace('<link rel="preconnect" href="https://cdn.sanity.io">', '')
+    html_str = html_str.replace('<link rel="dns-prefetch" href="https://cdn.sanity.io">', '')
 
     return html_str
 
@@ -1306,8 +1387,12 @@ def process_page(slug):
     with open(in_file, 'r', encoding='utf-8') as f:
         html = f.read()
 
-    # 1. Replace Sanity images (preserving Section 4 OEM partner logo SVGs)
+    # 1. Replace Sanity images (including OEM partner logo SVGs)
     html, rep_count = sanity_pattern.subn(sanity_replacer, html)
+
+    # 1a. Also replace escaped sanity URLs in JSON flight payloads
+    escaped_sanity_pattern = re.compile(r'https?:\\/\\/cdn\.sanity\.io\\/images\\/[^\\]+\\/production\\/([a-zA-Z0-9_\-\.]+)(?:\\u[0-9a-fA-F]{4}|[^\s"\'<>\\])*')
+    html = escaped_sanity_pattern.sub(sanity_replacer, html)
 
     # 1b. Psychological Copywriting Overhaul for Automotive Modifiers
     html = apply_copywriting_overhaul(html, slug)
@@ -1322,7 +1407,7 @@ def process_page(slug):
     html = re.sub(r'([\"\'`])/web-app-manifest-', rf'\1{BASE_PATH}/web-app-manifest-', html)
 
     # Internal links (HTML attributes)
-    html = re.sub(r'href="/(builds|stock|contact|cookies|privacy|terms)(/?)"', rf'href="{BASE_PATH}/\1\2"', html)
+    html = re.sub(r'href="/(builds|stock|contact|cookies|privacy|terms|sitemap)(/?)"', rf'href="{BASE_PATH}/\1\2"', html)
     html = re.sub(r'href="/(builds|stock)/(fa\d+)(/?)"', rf'href="{BASE_PATH}/\1/\2\3"', html)
     html = re.sub(r'href="/"', f'href="{BASE_PATH}/"', html)
 
@@ -1525,6 +1610,59 @@ patch_logo_in_chunk(
     os.path.join(DEST_DIR, 'original_3dc.js')
 )
 
+def patch_link_chunk():
+    orig_path = os.path.join(DEST_DIR, 'original_2oj.js')
+    target_path = os.path.join(DEST_DIR, '_next/static/chunks/2ojz0fep8owih.js')
+    if not os.path.exists(orig_path):
+        return
+    shutil.copyfile(orig_path, target_path)
+    with open(target_path, 'r', encoding='utf-8') as f:
+        code = f.read()
+    # 1. module 522016 (next/link)
+    code = code.replace('prefetch:T=null', 'prefetch:T=!1')
+    code = code.replace('M=!1!==T', 'M=!1')
+    # 2. Link in module 951847
+    code = code.replace('i.prefetch(e)', '/* noop */')
+    code = code.replace('let i=l(),{href:s,replace:u,scroll:f,transitionTypes:m,transitionAwaitsContent:d,...p}=e,h=',
+                        f'let i=l(),{{href:s,replace:u,scroll:f,transitionTypes:m,transitionAwaitsContent:d,...p}}=e,o_href="string"==typeof s&&s.startsWith("/")&&!s.startsWith("{BASE_PATH}")?"{BASE_PATH}"+("/"===s?"/":s):s,h=')
+    code = code.replace('let e="string"==typeof s?s:s.pathname+(s.search||"")+(s.hash||"");',
+                        'let e="string"==typeof o_href?o_href:o_href.pathname+(o_href.search||"")+(o_href.hash||"");')
+    code = code.replace(',href:s,', ',href:o_href,')
+    code = code.replace('return(0,t.jsx)(r.default,{...p,ref:o,href:o_href,',
+                        'return(0,t.jsx)(r.default,{prefetch:!1,...p,ref:o,href:o_href,')
+    with open(target_path, 'w', encoding='utf-8') as f:
+        f.write(code)
+    print("Patched Link chunk (2ojz0fep8owih.js): safe prefix & prefetch disabled")
+
+patch_link_chunk()
+
+def patch_menu_alt_chunk():
+    orig_path = os.path.join(DEST_DIR, 'original_3pg.js')
+    target_path = os.path.join(DEST_DIR, '_next/static/chunks/3pgt5eg5ybvup.js')
+    if not os.path.exists(orig_path):
+        return
+    shutil.copyfile(orig_path, target_path)
+    with open(target_path, 'r', encoding='utf-8') as f:
+        code = f.read()
+    code = code.replace('{label:"Builds",href:"/builds",aria:"Navigate to Builds"}',
+                        f'{{label:"Builds",href:"{BASE_PATH}/builds",aria:"Navigate to Builds"}}')
+    code = code.replace('{label:"Stock",href:"/stock",aria:"Navigate to Stock"}',
+                        f'{{label:"Stock",href:"{BASE_PATH}/stock",aria:"Navigate to Stock"}}')
+    code = code.replace('{label:"Contact",href:"/contact",aria:"Navigate to Contact"}',
+                        f'{{label:"Contact",href:"{BASE_PATH}/contact",aria:"Navigate to Contact"}}')
+    code = code.replace('let r=n.startsWith("/")?n:`/${n}`;',
+                        f'let r="string"==typeof n&&n.startsWith("{BASE_PATH}")?n:"{BASE_PATH}"+(n.startsWith("/")?n:"/"+n);')
+    code = code.replace('return l[6]!==c||l[7]!==f||l[8]!==o||l[9]!==p||l[10]!==n?(r=(0,t.jsx)(L.default,{href:o,',
+                        f'let o_safe="string"==typeof o&&o.startsWith("/")&&!o.startsWith("{BASE_PATH}")?"{BASE_PATH}"+("/"===o?"/":o):o;return l[6]!==c||l[7]!==f||l[8]!==o||l[9]!==p||l[10]!==n?(r=(0,t.jsx)(L.default,{{href:o_safe,')
+    code = code.replace('Powered by WRPD', 'Made by Gurdharam')
+    code = code.replace('https://wrpdgroup.com', 'https://github.com/gurination1')
+    code = code.replace('"aria-label":"Powered by WRPD"', '"aria-label":"Made by Gurdharam"')
+    with open(target_path, 'w', encoding='utf-8') as f:
+        f.write(code)
+    print("Patched alt menu chunk (3pgt5eg5ybvup.js): /branders links & Made by Gurdharam")
+
+patch_menu_alt_chunk()
+
 # Sanitize all chunks to ensure BASE_PATH (/branders) and clean credentials
 import glob
 for cfile in glob.glob(os.path.join(DEST_DIR, '_next/static/chunks/*.js')):
@@ -1555,6 +1693,58 @@ for cfile in glob.glob(os.path.join(DEST_DIR, '_next/static/chunks/*.js')):
     if 'bookings@wrpdgroup.com' in cdata:
         cdata = cdata.replace('bookings@wrpdgroup.com', 'contact@branders.co.uk')
         changed = True
+
+    # Neutralize SanityLive live connection
+    if '03hdi6auigpk_.js' in cfile:
+        cdata = cdata.replace('function o(e){let{config:o,includeDrafts:f=!1,', 'function o(e){return null;let{config:o,includeDrafts:f=!1,')
+        changed = True
+    if 'SanityLive' in cdata:
+        cdata = cdata.replace('["SanityLive",0,function(t){let[i,o]=(0,r.useState)(!1)', '["SanityLive",0,function(t){return null;let[i,o]=(0,r.useState)(!1)')
+        cdata = cdata.replace('["SanityLive",0,function(e){let[r,i]=(0,n.useState)(!1)', '["SanityLive",0,function(e){return null;let[r,i]=(0,n.useState)(!1)')
+        changed = True
+
+    # Disable React 19 image preload of external sanity CDN in SanityImage
+    if '2isoue6d_buae.js' in cfile or '3_85i70d26t0h.js' in cfile:
+        cdata = cdata.replace('y&&L&&(0,l.preload)(g.src', 'void 0&&(0,l.preload)(g.src')
+        changed = True
+
+    # Scrub Sanity credentials and domains
+    if 'ed72g2cx' in cdata:
+        cdata = cdata.replace('ed72g2cx', 'branders')
+        changed = True
+    if 'api.sanity.io' in cdata:
+        cdata = cdata.replace('https://api.sanity.io', f'https://gurination1.github.io{BASE_PATH}')
+        cdata = cdata.replace('api.sanity.io', f'gurination1.github.io{BASE_PATH}')
+        changed = True
+    if 'cdn.sanity.io' in cdata:
+        cdata = cdata.replace('https://cdn.sanity.io', f'https://gurination1.github.io{BASE_PATH}')
+        cdata = cdata.replace('cdn.sanity.io', f'gurination1.github.io{BASE_PATH}')
+        changed = True
+
+    # Ensure menu and CTA links have /branders prefix
+    if 'Navigate to Builds' in cdata:
+        cdata = cdata.replace('{label:"Builds",href:"/builds",aria:"Navigate to Builds"}', f'{{label:"Builds",href:"{BASE_PATH}/builds",aria:"Navigate to Builds"}}')
+        cdata = cdata.replace('{label:"Stock",href:"/stock",aria:"Navigate to Stock"}', f'{{label:"Stock",href:"{BASE_PATH}/stock",aria:"Navigate to Stock"}}')
+        cdata = cdata.replace('{label:"Contact",href:"/contact",aria:"Navigate to Contact"}', f'{{label:"Contact",href:"{BASE_PATH}/contact",aria:"Navigate to Contact"}}')
+        cdata = cdata.replace('let r=n.startsWith("/")?n:`/${n}`;', f'let r=n.startsWith("{BASE_PATH}")?n:(n.startsWith("/")?"{BASE_PATH}"+n:"{BASE_PATH}/"+n);')
+        cdata = cdata.replace('(0,t.jsx)($.default,{href:o,', f'(0,t.jsx)($.default,{{href:("string"==typeof o&&o.startsWith("/")&&!o.startsWith("{BASE_PATH}")?"{BASE_PATH}"+("/"===o?"/":o):o),')
+        cdata = cdata.replace('(0,t.jsx)(L.default,{href:o,', f'(0,t.jsx)(L.default,{{href:("string"==typeof o&&o.startsWith("/")&&!o.startsWith("{BASE_PATH}")?"{BASE_PATH}"+("/"===o?"/":o):o),')
+        changed = True
+
+    if 'to:"/contact"' in cdata:
+        cdata = cdata.replace('to:"/contact"', f'to:"{BASE_PATH}/contact"')
+        changed = True
+    if 'to:"/builds"' in cdata:
+        cdata = cdata.replace('to:"/builds"', f'to:"{BASE_PATH}/builds"')
+        changed = True
+    if 'to:"/stock"' in cdata:
+        cdata = cdata.replace('to:"/stock"', f'to:"{BASE_PATH}/stock"')
+        changed = True
+    if 'href:"/sitemap"' in cdata or 'href:"/sitemap/"' in cdata:
+        cdata = cdata.replace('href:"/sitemap/"', f'href:"{BASE_PATH}/sitemap/"')
+        cdata = cdata.replace('href:"/sitemap"', f'href:"{BASE_PATH}/sitemap"')
+        changed = True
+
     if changed:
         with open(cfile, 'w', encoding='utf-8') as cf:
             cf.write(cdata)
