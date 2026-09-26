@@ -681,6 +681,7 @@ def process_page(slug):
 
     # 2. Wire GitHub Pages subpath compatibility (prevent double prefix)
     html = re.sub(r'([\"\'`])/_next/', rf'\1{BASE_PATH}/_next/', html)
+    html = re.sub(r'([\"\'`])/(ActiveFrame\.js|images/)', rf'\1{BASE_PATH}/\2', html)
     html = re.sub(r'([\"\'`])/(favicon\.ico|icon0\.svg|icon1\.png|apple-icon\.png|manifest\.json)', rf'\1{BASE_PATH}/\2', html)
     html = re.sub(r'([\"\'`])/web-app-manifest-', rf'\1{BASE_PATH}/web-app-manifest-', html)
 
