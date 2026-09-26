@@ -651,7 +651,7 @@ RUNTIME_HEAD_INJECTION = f"""
       }}
     }});
     const siteby = document.querySelectorAll('[data-name="siteby"]');
-    siteby.forEach(function(el) {{ el.remove(); }});
+    siteby.forEach(function(el) {{ el.style.display = 'none'; }});
     if (found) creditsCleaned = true;
   }}
 
@@ -817,12 +817,22 @@ if os.path.exists(menu_chunk_path):
                 f.write(m_code)
             print("Patched menu chunk: Made by Gurdharam")
 
-# Restore authentic un-corrupted preloader chunk from original_414.js
+# Restore authentic preloader chunk from original_414.js and patch scrollerProxy & route scroll reset
 original_414_path = os.path.join(DEST_DIR, 'original_414.js')
 preloader_chunk_path = os.path.join(DEST_DIR, '_next/static/chunks/414eipoaws2vq.js')
 if os.path.exists(original_414_path):
     shutil.copyfile(original_414_path, preloader_chunk_path)
-    print("Restored authentic preloader chunk: original_414.js -> 414eipoaws2vq.js")
+    with open(preloader_chunk_path, 'r', encoding='utf-8') as f:
+        p_code = f.read()
+    # 1. Prevent ScrollTrigger.refresh() from resetting Lenis scroll to 0
+    p_code = p_code.replace('scrollTop:e=>(void 0!==e&&i.scrollTo(e,{immediate:!0}),i.scroll)',
+                            'scrollTop:e=>(void 0!==e&&!T.default.isRefreshing&&i.scrollTo(e,{immediate:!0}),i.scroll)')
+    # 2. Prevent route-reset hook from jumping to top on initial mount or re-mount
+    p_code = p_code.replace('if(!e||r.current===t)return;r.current=t,',
+                            'if(!e||r.current===t||null===r.current){r.current=t;return;}r.current=t,')
+    with open(preloader_chunk_path, 'w', encoding='utf-8') as f:
+        f.write(p_code)
+    print("Patched 414 chunk: prevented ScrollTrigger refresh & remount from resetting scroll to 0")
 
 # Hero background chunk update: 50ms ActiveFrame timeout & persistent background container
 hero_chunk_path = os.path.join(DEST_DIR, '_next/static/chunks/43lg5uv8_am8v.js')
@@ -835,15 +845,16 @@ if os.path.exists(hero_chunk_path):
         f.write(h_code)
     print("Patched hero chunk: 50ms ActiveFrame timeout and persistent background container")
 
-# React framework hydration patch: prevent fatal Error #418 overlay
+# React framework chunk update: error 418 hydration crash & safe insertBefore DOM patch
 framework_chunk_path = os.path.join(DEST_DIR, '_next/static/chunks/0-4srap-ffvu1.js')
 if os.path.exists(framework_chunk_path):
     with open(framework_chunk_path, 'r', encoding='utf-8') as f:
         f_code = f.read()
     f_code = f_code.replace('function rZ(e){var n=Error(u(418,1<arguments.length&&void 0!==arguments[1]&&arguments[1]?"text":"HTML",""));throw r4(rL(n,e)),rX}', 'function rZ(e){return;}')
+    f_code = f_code.replace('n?t.insertBefore(l,n):t.appendChild(l)', 'n&&n.parentNode===t?t.insertBefore(l,n):t.appendChild(l)')
     with open(framework_chunk_path, 'w', encoding='utf-8') as f:
         f.write(f_code)
-    print("Patched React framework chunk: neutralized error 418 hydration crash")
+    print("Patched React framework chunk: neutralized error 418 hydration crash and safe insertBefore")
 
 # Ensure .nojekyll exists
 with open(os.path.join(DEST_DIR, '.nojekyll'), 'w') as f:

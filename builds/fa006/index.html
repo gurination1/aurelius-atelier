@@ -126,7 +126,7 @@
       }
     });
     const siteby = document.querySelectorAll('[data-name="siteby"]');
-    siteby.forEach(function(el) { el.remove(); });
+    siteby.forEach(function(el) { el.style.display = 'none'; });
     if (found) creditsCleaned = true;
   }
 
