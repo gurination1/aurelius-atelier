@@ -244,7 +244,6 @@ HERO_BLEND_ENGINE = f"""
     if (introVideo && scrollVideo) {{
       // Crossfade Blend: Progress 0.00 -> 0.18
       const blendThreshold = 0.18;
-      const isScrollReady = scrollVideo.readyState >= 2;
       if (currentProgress <= 0.005) {{
         scrollVideo.style.opacity = "0";
         introVideo.style.opacity = "1";
@@ -253,24 +252,14 @@ HERO_BLEND_ENGINE = f"""
         }}
       }} else if (currentProgress < blendThreshold) {{
         const ratio = (currentProgress - 0.005) / (blendThreshold - 0.005);
-        if (isScrollReady) {{
-          scrollVideo.style.opacity = ratio.toFixed(4);
-          introVideo.style.opacity = (1 - ratio).toFixed(4);
-        }} else {{
-          scrollVideo.style.opacity = "0";
-          introVideo.style.opacity = "1";
-        }}
+        scrollVideo.style.opacity = ratio.toFixed(4);
+        introVideo.style.opacity = (1 - ratio).toFixed(4);
         if (introVideo.paused && introVideo.currentTime < ((introVideo.duration || 4.1) - 0.1)) {{
           introVideo.play().catch(() => {{}});
         }}
       }} else {{
-        if (isScrollReady) {{
-          scrollVideo.style.opacity = "1";
-          introVideo.style.opacity = "0";
-        }} else {{
-          scrollVideo.style.opacity = "0";
-          introVideo.style.opacity = "1";
-        }}
+        scrollVideo.style.opacity = "1";
+        introVideo.style.opacity = "0";
         if (!introVideo.paused) introVideo.pause();
       }}
 
@@ -398,7 +387,7 @@ HERO_BLEND_ENGINE = f"""
 
     // Global capture-phase listeners always active
     document.addEventListener("click", (e) => {{
-      const b = e.target.closest("button, [aria-label='Enter Website'], .sc-60e682e4-7, .preloader-enter-btn, [role='dialog']");
+      const b = e.target.closest("button, [aria-label='Enter Website'], .sc-60e682e4-7");
       if (b) {{
         onEnter();
       }}
@@ -467,29 +456,6 @@ HERO_BLEND_ENGINE = f"""
             try {{ scrVideo.currentTime = 0; }} catch(e) {{}}
           }}).catch(() => {{}});
         }}
-      }} else {{
-        // Guarantee: ensure enter button is visible and active after 2.2s
-        setTimeout(() => {{
-          if (!isExiting && sessionStorage.getItem("forge_entered") !== "true") {{
-            let btn = document.querySelector('[aria-label="Enter Website"], button.sc-60e682e4-7, .preloader-enter-btn');
-            if (!btn) {{
-              const bottomContainer = document.querySelector('.sc-60e682e4-2') || document.querySelector('.eLZiTc');
-              if (bottomContainer) {{
-                const wrapper = document.createElement('div');
-                wrapper.className = 'sc-60e682e4-3 preloader-bottom-fallback';
-                wrapper.innerHTML = '<button type="button" aria-label="Enter Website" class="sc-60e682e4-7 preloader-enter-btn" style="opacity: 1 !important; visibility: visible !important; pointer-events: auto !important; cursor: pointer;"><span><span>E</span><span>n</span><span>t</span><span>e</span><span>r</span></span></button><span class="sc-60e682e4-6" style="margin-top: 0.8rem; font-size: 0.85rem; color: rgba(255,255,255,0.6); text-align: center;">By pressing “Enter” on this website, you accept the use of cookies for analytics</span>';
-                bottomContainer.innerHTML = '';
-                bottomContainer.appendChild(wrapper);
-                btn = wrapper.querySelector('button');
-              }}
-            }}
-            if (btn) {{
-              btn.style.setProperty('opacity', '1', 'important');
-              btn.style.setProperty('visibility', 'visible', 'important');
-              btn.style.setProperty('pointer-events', 'auto', 'important');
-            }}
-          }}
-        }}, 2200);
       }}
     }}
 
@@ -586,9 +552,8 @@ html.site-entered .sc-cf9722b1-0 {{
 RUNTIME_HEAD_INJECTION = f"""
 <script id="gh-pages-base">
 (function() {{
-  const isGh = window.location.hostname.includes('github.io') || window.location.pathname.startsWith('{BASE_PATH}');
-  window.__BASE_PATH__ = isGh ? '{BASE_PATH}' : '';
-  window.TURBOPACK_CHUNK_BASE_PATH = (isGh ? '{BASE_PATH}' : '') + '/_next/';
+  window.__BASE_PATH__ = '{BASE_PATH}';
+  window.TURBOPACK_CHUNK_BASE_PATH = '{BASE_PATH}/_next/';
 }})();
 </script>
 <script id="runtime-image-guard">
@@ -802,27 +767,23 @@ if os.path.exists(menu_chunk_path):
                 f.write(m_code)
             print("Patched menu chunk: Made by Gurdharam")
 
-# Preloader chunk update: prevent infinite hang by allowing completion
+# Restore authentic un-corrupted preloader chunk from original_414.js
+original_414_path = os.path.join(DEST_DIR, 'original_414.js')
 preloader_chunk_path = os.path.join(DEST_DIR, '_next/static/chunks/414eipoaws2vq.js')
-if os.path.exists(preloader_chunk_path):
-    with open(preloader_chunk_path, 'r', encoding='utf-8') as f:
-        p_code = f.read()
-    p_code = p_code.replace("w=void 0!==h&&h", "w=!0")
-    p_code = p_code.replace("Y=(F?K&&(!M||R):J)&&B", "Y=B||!0")
-    p_code = p_code.replace('C[7]===Symbol.for("react.memo_cache_sentinel")?(w=()=>U(!0),C[7]=w):w=C[7];let Z=w;', 'C[7]===Symbol.for("react.memo_cache_sentinel")?(w=(typeof window!=="undefined"&&setTimeout(()=>U(!0),2200),()=>U(!0)),C[7]=w):w=C[7];let Z=w;')
-    with open(preloader_chunk_path, 'w', encoding='utf-8') as f:
-        f.write(p_code)
-    print("Patched preloader chunk: guaranteed completion")
+if os.path.exists(original_414_path):
+    shutil.copyfile(original_414_path, preloader_chunk_path)
+    print("Restored authentic preloader chunk: original_414.js -> 414eipoaws2vq.js")
 
-# Hero background chunk update: prevent unmounting on codec errors
+# Hero background chunk update: 50ms ActiveFrame timeout & persistent background container
 hero_chunk_path = os.path.join(DEST_DIR, '_next/static/chunks/43lg5uv8_am8v.js')
 if os.path.exists(hero_chunk_path):
     with open(hero_chunk_path, 'r', encoding='utf-8') as f:
         h_code = f.read()
     h_code = h_code.replace(',"unsupported"===ed||"error"===ed)?null:', ',!1)?null:')
+    h_code = h_code.replace('waitForActiveFrameRuntime)(t.signal),2e4,', 'waitForActiveFrameRuntime)(t.signal),50,')
     with open(hero_chunk_path, 'w', encoding='utf-8') as f:
         f.write(h_code)
-    print("Patched hero chunk: persistent background container")
+    print("Patched hero chunk: 50ms ActiveFrame timeout and persistent background container")
 
 # React framework hydration patch: prevent fatal Error #418 overlay
 framework_chunk_path = os.path.join(DEST_DIR, '_next/static/chunks/0-4srap-ffvu1.js')
