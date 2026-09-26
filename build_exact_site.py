@@ -824,6 +824,16 @@ if os.path.exists(hero_chunk_path):
         f.write(h_code)
     print("Patched hero chunk: persistent background container")
 
+# React framework hydration patch: prevent fatal Error #418 overlay
+framework_chunk_path = os.path.join(DEST_DIR, '_next/static/chunks/0-4srap-ffvu1.js')
+if os.path.exists(framework_chunk_path):
+    with open(framework_chunk_path, 'r', encoding='utf-8') as f:
+        f_code = f.read()
+    f_code = f_code.replace('function rZ(e){var n=Error(u(418,1<arguments.length&&void 0!==arguments[1]&&arguments[1]?"text":"HTML",""));throw r4(rL(n,e)),rX}', 'function rZ(e){return;}')
+    with open(framework_chunk_path, 'w', encoding='utf-8') as f:
+        f.write(f_code)
+    print("Patched React framework chunk: neutralized error 418 hydration crash")
+
 # Ensure .nojekyll exists
 with open(os.path.join(DEST_DIR, '.nojekyll'), 'w') as f:
     pass
