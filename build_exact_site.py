@@ -1233,10 +1233,15 @@ def process_page(slug):
     html = re.sub(r'([\"\'`])/(favicon\.ico|icon0\.svg|icon1\.png|apple-icon\.png|manifest\.json)', rf'\1{BASE_PATH}/\2', html)
     html = re.sub(r'([\"\'`])/web-app-manifest-', rf'\1{BASE_PATH}/web-app-manifest-', html)
 
-    # Internal links
+    # Internal links (HTML attributes)
     html = re.sub(r'href="/(builds|stock|contact|cookies|privacy|terms)(/?)"', rf'href="{BASE_PATH}/\1\2"', html)
     html = re.sub(r'href="/(builds|stock)/(fa\d+)(/?)"', rf'href="{BASE_PATH}/\1/\2\3"', html)
     html = re.sub(r'href="/"', f'href="{BASE_PATH}/"', html)
+
+    # Escaped JSON payloads for Next.js App Router hydration
+    html = re.sub(r'\\"href\\":\\"/(builds|stock|contact|cookies|privacy|terms|sitemap)(/?)(\\")', rf'\"href\":\"{BASE_PATH}/\1\2\3', html)
+    html = re.sub(r'\\"href\\":\\"/(builds|stock)/(fa\d+)(/?)(\\")', rf'\"href\":\"{BASE_PATH}/\1/\2\3\4', html)
+    html = re.sub(r'\\"href\\":\\"/\\"', rf'\"href\":\"{BASE_PATH}/\"', html)
 
     # Inject runtime head scripts
     if '<head>' in html:
