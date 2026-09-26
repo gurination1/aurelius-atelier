@@ -28,6 +28,7 @@ const MIME_TYPES = {
 const server = http.createServer((req, res) => {
   const parsedUrl = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
   let pathname = decodeURIComponent(parsedUrl.pathname);
+  if (pathname.startsWith("/branders")) pathname = pathname.slice("/branders".length) || "/";
   if (pathname.startsWith("/aurelius-atelier")) pathname = pathname.slice("/aurelius-atelier".length) || "/";
 
   if (pathname === '/') {

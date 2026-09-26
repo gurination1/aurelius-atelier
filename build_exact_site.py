@@ -5,7 +5,7 @@ import shutil
 
 SRC_DIR = '/root/forge-site-live'
 DEST_DIR = '/root/forge-source'
-BASE_PATH = '/aurelius-atelier'
+BASE_PATH = '/branders'
 
 PAGES = [
     '',
@@ -1350,9 +1350,9 @@ if os.path.exists(original_414_path):
                             'clip-path: none; border-radius: ${e?"16px":"0px"}; box-shadow: ${e?"0 30px 100px rgba(0,0,0,0.95), 0 0 40px rgba(0,0,0,0.7)":"none"}; border: ${e?"1px solid rgba(255,255,255,0.18)":"1px solid transparent"}; opacity: ${e?0.55:1}; transform-origin: center center;')
     p_code = p_code.replace('scale: ${e?.5:1};', 'scale: ${e?.52:1};')
     p_code = p_code.replace('y.current?.toggleAttribute("inert",b||h)', 'y.current?.toggleAttribute("inert",b)')
-    # 4. Recognize subpath /aurelius-atelier as homepage for Loader and SmoothScroll
-    p_code = p_code.replace('F="/"===(0,p.usePathname)()', 'F=["/","/aurelius-atelier","/aurelius-atelier/"].includes((0,p.usePathname)())')
-    p_code = p_code.replace('x="/"===f&&!p', 'x=(["/","/aurelius-atelier","/aurelius-atelier/"].includes(f))&&!p')
+    # 4. Recognize subpath /branders as homepage for Loader and SmoothScroll
+    p_code = p_code.replace('F="/"===(0,p.usePathname)()', 'F=["/","/branders","/branders/","/aurelius-atelier","/aurelius-atelier/"].includes((0,p.usePathname)())')
+    p_code = p_code.replace('x="/"===f&&!p', 'x=(["/","/branders","/branders/","/aurelius-atelier","/aurelius-atelier/"].includes(f))&&!p')
     # 5. Ensure preloader completes reliably once cinematic text completes
     p_code = p_code.replace('Y=(F?K&&(!M||R):J)&&B', 'Y=B')
     # 6. Surgical Brand Name replacement: Forge Automotive -> Branders
