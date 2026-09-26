@@ -825,6 +825,14 @@ RUNTIME_HEAD_INJECTION = f"""
 (function() {{
   window.__BASE_PATH__ = '{BASE_PATH}';
   window.TURBOPACK_CHUNK_BASE_PATH = '{BASE_PATH}/_next/';
+  const origFetch = window.fetch;
+  window.fetch = function(resource, init) {{
+    const url = typeof resource === 'string' ? resource : (resource && resource.url ? resource.url : '');
+    if (url && url.includes('_rsc=')) {{
+      return Promise.reject(new TypeError('Failed to fetch'));
+    }}
+    return origFetch.apply(this, arguments);
+  }};
   document.addEventListener('click', function(e) {{
     var a = e.target.closest('a');
     if (a) {{
